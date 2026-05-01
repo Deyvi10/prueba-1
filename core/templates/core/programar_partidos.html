@@ -5,202 +5,199 @@
 
 {% block extra_css %}
 <style>
-    /* --- DISEÑO DEPORTIVO "CLEAN & SHARP" --- */
+    /* --- DISEÑO PRO-DENSITY 2026 (ULTRA COMPACTO) --- */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
     :root {
-        --app-bg: #f8fafc;
-        --card-bg: #ffffff;
-        --text-main: #1e293b;
-        --text-muted: #64748b;
-        --border-soft: #e2e8f0;
-        
-        --brand-primary: #0ea5e9;
-        --brand-success: #10b981;
-        --brand-danger: #ef4444;
-        --brand-warning: #f59e0b;
-        --brand-dark: #0f172a;
+        --bg-body: #f1f5f9;
+        --bg-card: #ffffff;
+        --text-main: #0f172a;
+        --text-sec: #475569;
+        --border-light: #e2e8f0;
+        --accent-blue: #2563eb;
+        --accent-red: #dc2626;
+        --radius-card: 12px;
     }
 
-    body { background-color: var(--app-bg); color: var(--text-main); }
+    body { background-color: var(--bg-body); color: var(--text-main); font-family: 'Inter', sans-serif; }
 
-    /* ==============================================================
-       🔥 FIX ANTI-DARK MODE (Evita letras blancas en fondo blanco) 🔥
-       ============================================================== */
-    .form-control, .form-select, input, select, textarea {
-        background-color: #ffffff !important;
-        color: #0f172a !important; /* Fuerza el color oscuro en el texto */
-        border: 1px solid #cbd5e1 !important;
-        font-weight: 600 !important;
+    /* Inputs compactos */
+    .form-control, .form-select {
+        background-color: var(--bg-card) !important; color: var(--text-main) !important;
+        border: 1px solid var(--border-light) !important; border-radius: 8px; font-weight: 600; padding: 6px 12px;
+        font-size: 0.85rem; box-shadow: none !important;
     }
-    .form-control::placeholder, input::placeholder {
-        color: #94a3b8 !important;
-    }
-    .form-control:focus, .form-select:focus, input:focus, select:focus {
-        background-color: #ffffff !important;
-        color: #0f172a !important;
-        border-color: var(--brand-primary) !important;
-        box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15) !important;
-    }
+    .form-control:focus, .form-select:focus { border-color: var(--accent-blue) !important; }
 
-    /* Tarjetas base */
-    .glass-card {
-        background: var(--card-bg); border-radius: 16px;
-        border: 1px solid var(--border-soft); box-shadow: 0 4px 15px rgba(0,0,0,0.03);
-        padding: 20px; margin-bottom: 20px;
-    }
-
-    /* Selector de Torneos */
-    .selector-ui {
-        background: #f1f5f9 !important; border: 1px solid #cbd5e1 !important; border-radius: 10px;
-        padding: 10px 15px; font-weight: 800 !important; color: var(--brand-dark) !important; font-size: 0.95rem;
-        cursor: pointer; transition: all 0.2s;
-    }
-
-    /* Botones Superiores de Navegación */
+    /* Botones Superiores */
     .btn-dash {
-        border-radius: 8px; padding: 6px 14px; font-weight: 800; font-size: 0.75rem; text-transform: uppercase;
-        display: inline-flex; align-items: center; gap: 6px; border: 1px solid transparent; text-decoration: none; transition: 0.2s;
+        border-radius: 8px; padding: 5px 12px; font-weight: 700; font-size: 0.7rem; text-transform: uppercase;
+        display: inline-flex; align-items: center; gap: 4px; text-decoration: none; border: 1px solid var(--border-light);
     }
-    .btn-dash:hover { transform: translateY(-2px); }
-    .btn-fase1 { background: #e2e8f0; color: var(--brand-dark); border-color: #cbd5e1; }
-    .btn-fase2 { background: #fef3c7; color: #b45309; border-color: #fde68a; }
-    .btn-stats { background: #e0f2fe; color: #0369a1; border-color: #bae6fd; }
+    .btn-fase1 { background: #ffffff; color: #1e293b; }
+    .btn-fase2 { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+    .btn-stats { background: #eff6ff; color: #1e40af; border-color: #bfdbfe; }
 
-    /* --- ACORDEONES (FASES Y JORNADAS) --- */
-    .fase-badge {
-        background: #f1f5f9; color: var(--brand-dark); padding: 6px 15px; border: 1px solid #cbd5e1;
-        border-radius: 8px; font-weight: 900; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px;
-        display: inline-block; margin: 1.5rem 0 1rem;
+    /* --- SMART TOOLBAR COMPACTA --- */
+    .smart-toolbar {
+        background: var(--bg-card); border-radius: 12px; padding: 10px 15px; margin-bottom: 15px;
+        display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between;
+        border: 1px solid var(--border-light);
     }
+    .search-box { position: relative; flex-grow: 1; max-width: 300px; }
+    .search-box input { padding-left: 32px; border-radius: 8px; font-size: 0.8rem; }
+    .search-box i { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-sec); font-size: 0.9rem; }
+    
+    .filter-pills { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+    .filter-pills::-webkit-scrollbar { height: 0px; }
+    .pill { 
+        padding: 5px 12px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; 
+        color: var(--text-sec); background: #f8fafc; cursor: pointer; border: 1px solid var(--border-light); white-space: nowrap;
+    }
+    .pill:hover { background: #e2e8f0; color: var(--text-main); }
+    .pill.active { background: var(--text-main); color: #ffffff; border-color: var(--text-main); }
 
+    /* --- ACORDEONES MINIMALISTAS --- */
+    .fase-badge { font-weight: 800; font-size: 0.85rem; color: var(--text-sec); text-transform: uppercase; margin: 1rem 0 0.5rem 5px; }
     .jornada-accordion { --bs-accordion-bg: transparent; --bs-accordion-border-width: 0; }
-    .accordion-item { background: transparent; border: none; margin-bottom: 12px; }
+    .accordion-item { background: transparent; border: none; margin-bottom: 15px; }
     .accordion-button {
-        background: var(--card-bg) !important; border-radius: 12px !important;
-        border: 1px solid var(--border-soft); box-shadow: 0 2px 5px rgba(0,0,0,0.02) !important;
-        font-weight: 800; color: var(--brand-dark) !important; padding: 12px 16px; font-size: 0.85rem;
+        background: transparent !important; padding: 0 0 8px 0; box-shadow: none !important; color: var(--text-main) !important;
+        font-weight: 800; font-size: 0.8rem; text-transform: uppercase; border-bottom: 1px solid var(--border-light);
     }
-    .accordion-button:not(.collapsed) { 
-        border-bottom-left-radius: 0 !important; border-bottom-right-radius: 0 !important; 
-        border-bottom: 2px solid var(--brand-primary) !important; background-color: #f8fafc !important; 
+    .accordion-button::after { transform: scale(0.7); }
+    .accordion-body { padding: 12px 0 0 0; background: transparent; }
+
+    /* --- TARJETAS COMPACTAS DE PARTIDO (GRID) --- */
+    .match-card {
+        background: var(--bg-card); border-radius: var(--radius-card); padding: 12px;
+        border: 1px solid var(--border-light); height: 100%; display: flex; flex-direction: column;
+        transition: border-color 0.2s; position: relative;
     }
-    .accordion-body {
-        background: var(--card-bg); border: 1px solid var(--border-soft); border-top: none;
-        border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; padding: 10px;
-    }
+    .match-card:hover { border-color: #cbd5e1; box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
 
-    /* --- BARRAS DE PARTIDO COMPACTAS (SCOREBARS) --- */
-    .match-row {
-        display: flex; align-items: center; justify-content: space-between;
-        background: #ffffff; border: 1px solid var(--border-soft); border-radius: 10px;
-        padding: 10px; margin-bottom: 8px; position: relative; overflow: hidden;
-        transition: transform 0.2s, box-shadow 0.2s;
-    }
-    .match-row:last-child { margin-bottom: 0; }
-    .match-row:hover { border-color: #cbd5e1; background-color: #f8fafc; }
-
-    /* Estado a la izquierda */
-    .status-bar { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
-    .st-fin { background: var(--brand-success); }
-    .st-live { background: var(--brand-danger); }
-    .st-prog { background: var(--brand-primary); }
-    .st-acta { background: var(--brand-warning); }
-    .st-wo { background: var(--text-muted); }
-
-    /* Fecha y Hora Compacta */
-    .time-box { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 55px; flex-shrink: 0; padding-left: 5px; }
-    .time-val { font-weight: 900; color: var(--brand-dark); font-size: 0.8rem; line-height: 1; }
-    .date-val { font-size: 0.6rem; color: #64748b; font-weight: bold; text-transform: uppercase; margin-top: 2px; }
-
-    /* Centro: Equipos y Marcador */
-    .match-center { display: flex; align-items: center; justify-content: center; flex-grow: 1; padding: 0 10px; }
+    /* Header Compacto */
+    .mc-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px dashed var(--border-light); }
+    .mc-status { font-size: 0.6rem; font-weight: 800; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; }
+    .st-jug { background: #d1fae5; color: #065f46; }
+    .st-vivo { background: #fee2e2; color: #991b1b; animation: pulse 2s infinite; }
+    .st-prog { background: #e0f2fe; color: #1e40af; }
+    .st-acta { background: #fef3c7; color: #92400e; }
+    .st-wo { background: #f1f5f9; color: #475569; }
+    @keyframes pulse { 50% { opacity: 0.5; } }
     
-    .team-name { font-weight: 800; font-size: 0.8rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 90px; }
-    .team-local { text-align: right; }
-    .team-visita { text-align: left; }
-    
-    .club-crest { width: 22px; height: 22px; object-fit: contain; margin: 0 6px; }
+    .mc-time { display: flex; align-items: center; gap: 8px; }
+    .mc-time .cancha { font-size: 0.65rem; color: var(--text-sec); font-weight: 600; max-width: 80px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mc-time .hora { font-size: 0.7rem; font-weight: 800; color: var(--text-main); }
 
-    /* Marcador Light Mode */
-    .score-pill {
-        background: #f1f5f9; border: 1px solid #cbd5e1; color: var(--brand-dark); 
-        padding: 4px 10px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; font-weight: 900;
-        display: flex; align-items: center; justify-content: center; min-width: 55px; margin: 0 8px; letter-spacing: 1px;
+    /* Cuerpo Horizontal Estricto (Ahorra espacio vertical) */
+    .mc-body { display: flex; align-items: center; justify-content: space-between; gap: 5px; flex-grow: 1; margin-bottom: 10px; }
+    
+    .mc-team { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
+    .mc-team.t-local { justify-content: flex-end; }
+    .mc-team.t-away { justify-content: flex-start; }
+    
+    .mc-name { font-weight: 700; font-size: 0.75rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mc-crest { width: 28px; height: 28px; object-fit: contain; flex-shrink: 0; }
+    
+    .mc-score-wrap { flex: 0 0 50px; text-align: center; }
+    .mc-score { font-size: 1rem; font-weight: 800; color: var(--text-main); background: #f1f5f9; padding: 2px 6px; border-radius: 6px; letter-spacing: 1px; }
+    .mc-vs { font-size: 0.7rem; font-weight: 800; color: var(--text-sec); }
+
+    /* Footer de Botones Pequeños */
+    .mc-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid var(--border-light); }
+    
+    .vocal-actions { display: flex; gap: 4px; flex-grow: 1; }
+    .btn-action { 
+        padding: 4px 8px; border-radius: 6px; font-weight: 700; font-size: 0.65rem; 
+        text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 4px; 
+        border: 1px solid var(--border-light); width: 100%; color: var(--text-main); background: #f8fafc;
     }
-    .score-pill.live { background: #fee2e2; border-color: #fca5a5; color: #b91c1c; animation: pulseLive 1.5s infinite; }
-    @keyframes pulseLive { 0% { box-shadow: 0 0 0 0 rgba(239,68,68,0.3); } 70% { box-shadow: 0 0 0 5px rgba(239,68,68,0); } 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); } }
+    .btn-action:hover { background: #e2e8f0; }
+    .btn-action.pdf { color: #dc2626; border-color: #fecaca; background: #fef2f2; }
+    .btn-action.primary { color: #2563eb; border-color: #bfdbfe; background: #eff6ff; }
+    .btn-action.warning { color: #d97706; border-color: #fde68a; background: #fffbeb; }
 
-    /* Acciones Derecha */
-    .action-box { display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-shrink: 0; }
-    
-    .btn-act { border-radius: 6px; padding: 4px 8px; font-weight: 800; font-size: 0.65rem; text-transform: uppercase; text-decoration: none; border: 1px solid transparent; display: flex; align-items: center; gap: 4px; }
-    
-    .btn-pitar { background: #e0f2fe; color: #0284c7; border-color: #bae6fd; }
-    .btn-pdf { background: #fee2e2; color: #b91c1c; border-color: #fecaca; }
-    .btn-acta { background: #fef3c7; color: #b45309; border-color: #fde68a; }
-    .btn-view { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
-
-    /* Admin Toolbar Minimalista */
-    .btn-tool {
-        width: 24px; height: 24px; border-radius: 6px; background: #f8fafc; border: 1px solid var(--border-soft);
-        display: inline-flex; align-items: center; justify-content: center; color: #64748b; font-size: 0.75rem; text-decoration: none;
+    .admin-actions { display: flex; gap: 4px; margin-left: 8px; }
+    .btn-admin { 
+        width: 24px; height: 24px; border-radius: 6px; background: transparent; color: var(--text-sec);
+        display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 0.75rem; border: 1px solid var(--border-light);
     }
-    .btn-tool:hover { background: #e2e8f0; color: var(--brand-dark); }
-    .btn-tool.delete:hover { background: #fee2e2; color: var(--brand-danger); border-color: #fecaca; }
+    .btn-admin:hover { background: #e2e8f0; color: var(--text-main); }
+    .btn-admin.danger:hover { background: #fee2e2; color: var(--accent-red); border-color: #fecaca; }
 
-    /* Optimizaciones Móviles */
+    /* --- MOBILE OPTIMIZATION (Ultra Denso) --- */
     @media (max-width: 768px) {
-        .glass-card { padding: 15px; border-radius: 12px; margin-bottom: 15px; }
-        .match-row { flex-direction: column; padding: 10px 8px; gap: 8px; }
-        .time-box { width: 100%; flex-direction: row; gap: 6px; border-bottom: 1px dashed var(--border-soft); padding-bottom: 6px; padding-left: 0; }
-        .date-val { margin-top: 0; }
-        .match-center { width: 100%; justify-content: space-between; }
-        .team-name { max-width: 100px; font-size: 0.75rem; }
-        .action-box { width: 100%; justify-content: space-between; border-top: 1px dashed var(--border-soft); padding-top: 8px; margin-top: 2px; }
-        .admin-toolbar-mobile { display: flex; gap: 6px; }
+        .smart-toolbar { padding: 10px; }
+        .search-box { max-width: 100%; }
+        
+        .match-card { padding: 10px; }
+        .mc-name { font-size: 0.7rem; } /* Letra un poco más pequeña para que entren nombres largos */
+        .mc-score { font-size: 0.9rem; padding: 2px 4px; }
+        .mc-crest { width: 24px; height: 24px; }
+        
+        /* En móvil, garantizamos que el layout horizontal no se rompa */
+        .mc-body { gap: 4px; }
+        .mc-score-wrap { flex: 0 0 45px; }
     }
 </style>
 {% endblock %}
 
 {% block contenido %}
+<!-- Header Minimalista -->
 <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 animate__animated animate__fadeInDown">
     <div>
-        <h4 class="text-dark fw-black m-0" style="letter-spacing: -0.5px;">Calendario Oficial</h4>
-        <p class="text-muted small m-0 fw-medium">Control de partidos y actas.</p>
+        <h4 class="fw-black m-0 text-dark" style="letter-spacing: -0.5px;">Calendario de Partidos</h4>
+    </div>
+    
+    <div class="mt-2 mt-md-0 d-flex flex-wrap gap-2">
+        {% if torneo_actual %}
+            <a href="{% url 'tabla_posiciones' torneo_actual %}" class="btn-dash btn-fase1"><i class="bi bi-list-ol"></i> Fase 1</a>
+            <a href="{% url 'tabla_posiciones_f2' torneo_actual %}" class="btn-dash btn-fase2"><i class="bi bi-diagram-2-fill"></i> Fase 2</a>
+            <a href="{% url 'reporte_estadisticas' torneo_actual %}" class="btn-dash btn-stats"><i class="bi bi-bar-chart-fill"></i> Récords</a>
+        {% endif %}
     </div>
 </div>
 
-<div class="glass-card animate__animated animate__fadeInUp py-3">
-    <form method="GET" class="row align-items-center m-0">
-        <div class="col-md-5 mb-2 mb-md-0 px-0">
-            <select name="torneo" class="form-select selector-ui w-100" onchange="this.form.submit()">
-                <option value="">-- Selecciona un Torneo --</option>
-                {% for t in torneos %}
-                    <option value="{{ t.id }}" {% if torneo_actual == t.id %}selected{% endif %}>{{ t.nombre }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        
-        {% if torneo_actual %}
-        <div class="col-md-7 d-flex flex-wrap justify-content-md-end gap-2 px-0 mt-2 mt-md-0">
-            <a href="{% url 'tabla_posiciones' torneo_actual %}" class="btn-dash btn-fase1"><i class="bi bi-list-ol"></i> Fase 1</a>
-            <a href="{% url 'tabla_posiciones_f2' torneo_actual %}" class="btn-dash btn-fase2"><i class="bi bi-diagram-2-fill"></i> Grupos F2</a>
-            <a href="{% url 'reporte_estadisticas' torneo_actual %}" class="btn-dash btn-stats"><i class="bi bi-bar-chart-fill"></i> Récords</a>
-        </div>
-        {% endif %}
+<!-- Selector de Torneo Compacto -->
+<div class="mb-3 animate__animated animate__fadeIn">
+    <form method="GET" class="m-0">
+        <select name="torneo" class="form-select fw-bold shadow-sm" onchange="this.form.submit()">
+            <option value="">-- Selecciona un Torneo --</option>
+            {% for t in torneos %}
+                <option value="{{ t.id }}" {% if torneo_actual == t.id %}selected{% endif %}>{{ t.nombre }}</option>
+            {% endfor %}
+        </select>
     </form>
 </div>
 
 {% if torneo_actual %}
 
+    <!-- 🌟 SMART TOOLBAR COMPACTA 🌟 -->
+    <div class="smart-toolbar animate__animated animate__fadeInUp">
+        <div class="search-box">
+            <i class="bi bi-search"></i>
+            <input type="text" id="matchSearch" class="form-control" placeholder="Buscar equipo..." onkeyup="smartFilter()">
+        </div>
+        
+        <div class="filter-pills">
+            <div class="pill active" data-filter="all" onclick="setFilter(this, 'all')">Todos</div>
+            <div class="pill" data-filter="pending" onclick="setFilter(this, 'pending')">Por Jugar</div>
+            <div class="pill" data-filter="live" onclick="setFilter(this, 'live')"><span class="text-danger me-1">●</span>En Vivo/Acta</div>
+            <div class="pill" data-filter="finished" onclick="setFilter(this, 'finished')">Terminados</div>
+        </div>
+    </div>
+
+    <!-- AGENDAR PARTIDO (ORG) -->
     {% if request.user.perfil.rol == 'ORG' %}
-    <div class="card border-0 rounded-4 shadow-sm mb-4" style="border: 1px solid var(--border-soft);">
-        <div class="bg-light p-2 px-3 d-flex justify-content-between align-items-center border-bottom">
-            <h6 class="fw-bold text-dark m-0" style="font-size: 0.8rem;"><i class="bi bi-calendar-plus text-primary me-1"></i>Agendar Partido</h6>
-            <a href="{% url 'generar_fixture' torneo_actual %}" class="btn btn-sm btn-white border fw-bold rounded-pill text-primary shadow-sm" style="font-size: 0.65rem;">
+    <div class="card border-0 mb-3" style="background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border-light) !important;">
+        <div class="p-2 px-3 d-flex justify-content-between align-items-center border-bottom border-light">
+            <span class="fw-bold text-dark" style="font-size: 0.75rem;"><i class="bi bi-calendar-plus text-primary me-1"></i>Nuevo Partido</span>
+            <a href="{% url 'generar_fixture' torneo_actual %}" class="btn-dash btn-fase1" style="font-size: 0.65rem;">
                 <i class="bi bi-magic"></i> Auto-Fixture
             </a>
         </div>
-        <div class="card-body p-3">
+        <div class="card-body p-2 px-3">
             <form method="post" class="m-0">
                 {% csrf_token %}
                 <div class="row g-2 align-items-end">
@@ -208,13 +205,13 @@
                     {% for field in form %}
                         {% if field.name != 'torneo' %}
                         <div class="col-md-2 col-6">
-                            <label class="form-label text-muted fw-bold mb-1" style="font-size: 0.6rem; text-transform: uppercase;">{{ field.label }}</label>
+                            <label class="form-label text-muted fw-bold mb-1" style="font-size: 0.55rem; text-transform: uppercase;">{{ field.label }}</label>
                             {{ field }}
                         </div>
                         {% endif %}
                     {% endfor %}
-                    <div class="col-md-2 col-12 mt-3 mt-md-0">
-                        <button type="submit" class="btn btn-dark fw-bold w-100 py-1 text-white" style="font-size: 0.8rem; border-radius: 8px;">Guardar</button>
+                    <div class="col-md-2 col-12 mt-2 mt-md-0">
+                        <button type="submit" class="btn btn-sm btn-dark w-100 fw-bold" style="border-radius: 6px;">Guardar</button>
                     </div>
                 </div>
             </form>
@@ -222,102 +219,168 @@
     </div>
     {% endif %}
 
-    <div class="animate__animated animate__fadeInUp delay-1s">
-        
+    <!-- CONTENEDOR DE GRID -->
+    <div id="calendar-container">
         {% regroup partidos by get_etapa_display as fases_agrupadas %}
         
         {% for fase in fases_agrupadas %}
-            <div class="fase-badge shadow-sm"><i class="bi bi-flag-fill text-warning me-1"></i> {{ fase.grouper }}</div>
+            <div class="fase-wrapper">
+                <div class="fase-badge">{{ fase.grouper }}</div>
 
-            {% regroup fase.list by numero_fecha as jornadas_agrupadas %}
-            
-            <div class="accordion jornada-accordion" id="accFase{{ forloop.counter }}">
-                {% for jornada in jornadas_agrupadas %}
-                <div class="accordion-item">
-                    <h2 class="accordion-header" id="h-f{{ forloop.parentloop.counter }}-j{{ forloop.counter }}">
-                        <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#c-f{{ forloop.parentloop.counter }}-j{{ forloop.counter }}">
-                            <span class="text-primary me-2">|</span> JORNADA {{ jornada.grouper|default:"SIN FECHA" }}
-                            <span class="ms-auto badge bg-white text-dark border px-2 rounded-pill" style="font-size: 0.65rem;">{{ jornada.list|length }} Partidos</span>
-                        </button>
-                    </h2>
-                    
-                    <div id="c-f{{ forloop.parentloop.counter }}-j{{ forloop.counter }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" data-bs-parent="#accFase{{ forloop.parentloop.counter }}">
-                        <div class="accordion-body">
-                            
-                            {% for p in jornada.list %}
-                            <div class="match-row">
-                                <div class="status-bar {% if p.estado == 'JUG' %}st-fin{% elif p.estado == 'VIVO' %}st-live{% elif p.estado == 'ACTA' %}st-acta{% elif p.estado == 'WO' %}st-wo{% else %}st-prog{% endif %}"></div>
+                {% regroup fase.list by numero_fecha as jornadas_agrupadas %}
+                
+                <div class="accordion jornada-accordion" id="accFase{{ forloop.counter }}">
+                    {% for jornada in jornadas_agrupadas %}
+                    <div class="accordion-item search-jornada">
+                        <h2 class="accordion-header" id="h-f{{ forloop.parentloop.counter }}-j{{ forloop.counter }}">
+                            <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#c-f{{ forloop.parentloop.counter }}-j{{ forloop.counter }}">
+                                Jornada {{ jornada.grouper|default:"-" }}
+                                <span class="ms-2 text-muted fw-normal" style="font-size: 0.7rem; text-transform: none;">({{ jornada.list|length }} partidos)</span>
+                            </button>
+                        </h2>
+                        
+                        <div id="c-f{{ forloop.parentloop.counter }}-j{{ forloop.counter }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" data-bs-parent="#accFase{{ forloop.parentloop.counter }}">
+                            <div class="accordion-body">
                                 
-                                <div class="time-box">
-                                    {% if p.fecha_hora %}
-                                        <span class="time-val">{{ p.fecha_hora|time:"H:i" }}</span>
-                                        <span class="date-val">{{ p.fecha_hora|date:"d M" }}</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary bg-opacity-10 text-muted border border-secondary" style="font-size: 0.55rem;">Pte.</span>
-                                    {% endif %}
+                                <!-- 🌟 GRID SÚPER DENSO 🌟 -->
+                                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-2">
+                                    {% for p in jornada.list %}
+                                    <div class="col search-match" data-teams="{{ p.equipo_local.nombre|lower }} {{ p.equipo_visita.nombre|lower }}" data-status="{{ p.estado|lower }}">
+                                        <div class="match-card">
+                                            
+                                            <!-- HEADER COMPACTO -->
+                                            <div class="mc-header">
+                                                <div class="mc-status st-{{ p.estado|lower }}">{{ p.get_estado_display }}</div>
+                                                <div class="mc-time">
+                                                    <span class="cancha"><i class="bi bi-geo-alt me-1"></i>{{ p.cancha|default:"Cancha" }}</span>
+                                                    <span class="hora">{% if p.fecha_hora %}{{ p.fecha_hora|date:"d M H:i" }}{% else %}--:--{% endif %}</span>
+                                                </div>
+                                            </div>
+
+                                            <!-- CUERPO HORIZONTAL ESTRICTO -->
+                                            <div class="mc-body">
+                                                <!-- Team 1 -->
+                                                <div class="mc-team t-local">
+                                                    <span class="mc-name" title="{{ p.equipo_local.nombre }}">{{ p.equipo_local.nombre }}</span>
+                                                    <img src="{% if p.equipo_local.escudo %}{{ p.equipo_local.escudo.url }}{% else %}{% static 'img/default-shield.png' %}{% endif %}" class="mc-crest">
+                                                </div>
+                                                
+                                                <!-- Score -->
+                                                <div class="mc-score-wrap">
+                                                    {% if p.estado == 'JUG' or p.estado == 'FINALIZADO' or p.estado == 'VIVO' or p.estado == 'WO' %}
+                                                        <div class="mc-score">{{ p.goles_local }}-{{ p.goles_visita }}</div>
+                                                    {% else %}
+                                                        <div class="mc-vs">VS</div>
+                                                    {% endif %}
+                                                </div>
+
+                                                <!-- Team 2 -->
+                                                <div class="mc-team t-away">
+                                                    <img src="{% if p.equipo_visita.escudo %}{{ p.equipo_visita.escudo.url }}{% else %}{% static 'img/default-shield.png' %}{% endif %}" class="mc-crest">
+                                                    <span class="mc-name" title="{{ p.equipo_visita.nombre }}">{{ p.equipo_visita.nombre }}</span>
+                                                </div>
+                                            </div>
+
+                                            <!-- FOOTER COMPACTO -->
+                                            <div class="mc-footer">
+                                                <!-- Vocales -->
+                                                <div class="vocal-actions">
+                                                    {% if p.estado == 'JUG' or p.estado == 'WO' %}
+                                                        <a href="{% url 'generar_acta_pdf' p.id %}" target="_blank" class="btn-action pdf" title="Acta PDF"><i class="bi bi-file-pdf"></i> Acta</a>
+                                                        <a href="{% url 'gestionar_vocalia' p.id %}" class="btn-action"><i class="bi bi-bar-chart"></i> Stats</a>
+                                                    {% elif p.estado == 'ACTA' %}
+                                                        <a href="{% url 'gestionar_vocalia' p.id %}" class="btn-action warning"><i class="bi bi-pen-fill"></i> Completar</a>
+                                                    {% elif p.estado == 'VIVO' or p.estado == 'PROG' %}
+                                                        <a href="{% url 'gestionar_vocalia' p.id %}" class="btn-action primary"><i class="bi bi-play-fill"></i> Iniciar</a>
+                                                    {% endif %}
+                                                </div>
+
+                                                <!-- Admin (ORG) -->
+                                                {% if request.user.perfil.rol == 'ORG' %}
+                                                <div class="admin-actions">
+                                                    <a href="{% url 'editar_partido' p.id %}" class="btn-admin" title="Editar"><i class="bi bi-pencil"></i></a>
+                                                    <a href="{% url 'reiniciar_partido' p.id %}" onclick="return confirm('¿Resetear a 0?');" class="btn-admin" title="Reset"><i class="bi bi-arrow-counterclockwise"></i></a>
+                                                    <a href="{% url 'eliminar_partido' p.id %}" onclick="return confirm('¿ELIMINAR permanentemente?');" class="btn-admin danger" title="Eliminar"><i class="bi bi-trash"></i></a>
+                                                </div>
+                                                {% endif %}
+                                            </div>
+
+                                        </div>
+                                    </div>
+                                    {% endfor %}
                                 </div>
 
-                                <div class="match-center">
-                                    <div class="team-name team-local">{{ p.equipo_local.nombre }}</div>
-                                    <img src="{% if p.equipo_local.escudo %}{{ p.equipo_local.escudo.url }}{% else %}{% static 'img/default-shield.png' %}{% endif %}" class="club-crest">
-                                    
-                                    <div class="score-pill {% if p.estado == 'VIVO' %}live{% endif %}">
-                                        <span class="{% if p.goles_local > p.goles_visita and p.estado == 'JUG' %}text-primary{% endif %}">{{ p.goles_local }}</span>
-                                        <span style="opacity: 0.4; font-size: 0.8rem; margin: 0 4px;">-</span>
-                                        <span class="{% if p.goles_visita > p.goles_local and p.estado == 'JUG' %}text-primary{% endif %}">{{ p.goles_visita }}</span>
-                                    </div>
-                                    
-                                    <img src="{% if p.equipo_visita.escudo %}{{ p.equipo_visita.escudo.url }}{% else %}{% static 'img/default-shield.png' %}{% endif %}" class="club-crest">
-                                    <div class="team-name team-visita">{{ p.equipo_visita.nombre }}</div>
-                                </div>
-
-                                <div class="action-box">
-                                    <div class="d-flex gap-1">
-                                        {% if p.estado == 'JUG' or p.estado == 'WO' %}
-                                            <a href="{% url 'generar_acta_pdf' p.id %}" target="_blank" class="btn-act btn-pdf" title="Acta PDF"><i class="bi bi-file-pdf"></i> PDF</a>
-                                            <a href="{% url 'gestionar_vocalia' p.id %}" class="btn-act btn-view" title="Ver Detalles"><i class="bi bi-eye"></i></a>
-                                        {% elif p.estado == 'ACTA' %}
-                                            <a href="{% url 'gestionar_vocalia' p.id %}" class="btn-act btn-acta"><i class="bi bi-pen-fill"></i> Firma</a>
-                                        {% elif p.estado == 'VIVO' or p.estado == 'PROG' %}
-                                            <a href="{% url 'gestionar_vocalia' p.id %}" class="btn-act btn-pitar"><i class="bi bi-whistle"></i> Pitar</a>
-                                        {% endif %}
-                                    </div>
-
-                                    {% if request.user.perfil.rol == 'ORG' %}
-                                    <div class="admin-toolbar-mobile">
-                                        <a href="{% url 'editar_partido' p.id %}" class="btn-tool" title="Reprogramar"><i class="bi bi-pencil"></i></a>
-                                        <a href="{% url 'reiniciar_partido' p.id %}" onclick="return confirm('¿Resetear marcador a 0?');" class="btn-tool" title="Reset"><i class="bi bi-arrow-counterclockwise"></i></a>
-                                        <a href="{% url 'eliminar_partido' p.id %}" onclick="return confirm('¿ELIMINAR partido permanentemente?');" class="btn-tool delete" title="Borrar"><i class="bi bi-trash3"></i></a>
-                                    </div>
-                                    {% endif %}
-                                </div>
                             </div>
-                            {% endfor %}
-
                         </div>
                     </div>
+                    {% endfor %}
                 </div>
-                {% endfor %}
             </div>
         {% empty %}
-            <div class="glass-card text-center py-5 mt-3 border-dashed">
-                <i class="bi bi-inboxes text-muted opacity-25 d-block mb-2" style="font-size: 3rem;"></i>
-                <h6 class="fw-bold text-dark">Calendario Vacío</h6>
-                <p class="text-muted small mb-0">No hay partidos programados. Usa la "Varita Mágica".</p>
+            <div class="text-center py-4 mt-3 bg-white rounded-3 border">
+                <i class="bi bi-calendar-x text-muted opacity-25 d-block mb-2" style="font-size: 2.5rem;"></i>
+                <h6 class="fw-bold text-dark m-0">Calendario Vacío</h6>
             </div>
         {% endfor %}
+
+        <!-- Mensaje Búsqueda Vacía -->
+        <div id="no-results-msg" class="text-center py-4 mt-3 bg-white rounded-3 border" style="display: none;">
+            <i class="bi bi-search text-muted opacity-25 d-block mb-2" style="font-size: 2.5rem;"></i>
+            <h6 class="fw-bold text-dark m-0">Sin resultados</h6>
+        </div>
     </div>
 
 {% endif %}
 
 <script>
-    document.addEventListener("DOMContentLoaded", function() {
-        // Aseguramos que los inputs del form no se pongan oscuros en modo noche
-        const inputs = document.querySelectorAll('form input:not([type="checkbox"]), form select');
-        inputs.forEach(input => {
-            input.classList.add('form-control');
-            // Los estilos están forzados en el CSS principal en la etiqueta .form-control
+    let currentFilter = 'all';
+
+    function setFilter(element, filterType) {
+        document.querySelectorAll('.filter-pills .pill').forEach(el => el.classList.remove('active'));
+        element.classList.add('active');
+        currentFilter = filterType;
+        smartFilter();
+    }
+
+    function smartFilter() {
+        const searchTerm = document.getElementById('matchSearch').value.toLowerCase().trim();
+        const matchColumns = document.querySelectorAll('.search-match');
+        let totalVisible = 0;
+
+        matchColumns.forEach(col => {
+            const teams = col.getAttribute('data-teams');
+            const status = col.getAttribute('data-status');
+            let showBySearch = teams.includes(searchTerm);
+            let showByStatus = false;
+
+            if (currentFilter === 'all') showByStatus = true;
+            else if (currentFilter === 'pending' && ['prog'].includes(status)) showByStatus = true;
+            else if (currentFilter === 'live' && ['vivo', 'acta'].includes(status)) showByStatus = true;
+            else if (currentFilter === 'finished' && ['jug', 'finalizado', 'wo'].includes(status)) showByStatus = true;
+
+            if (showBySearch && showByStatus) {
+                col.style.display = 'block'; 
+                totalVisible++;
+            } else {
+                col.style.display = 'none';
+            }
         });
-    });
+
+        document.querySelectorAll('.search-jornada').forEach(jornada => {
+            const visibleMatches = Array.from(jornada.querySelectorAll('.search-match')).filter(el => el.style.display !== 'none');
+            jornada.style.display = visibleMatches.length ? 'block' : 'none';
+            
+            if (searchTerm.length > 0 && visibleMatches.length > 0) {
+                jornada.querySelector('.accordion-collapse').classList.add('show');
+            }
+        });
+
+        document.querySelectorAll('.fase-wrapper').forEach(fase => {
+            const visibleJornadas = Array.from(fase.querySelectorAll('.search-jornada')).filter(el => el.style.display !== 'none');
+            fase.style.display = visibleJornadas.length ? 'block' : 'none';
+        });
+
+        document.getElementById('no-results-msg').style.display = (totalVisible === 0 && matchColumns.length > 0) ? 'block' : 'none';
+    }
 </script>
 {% endblock %}
