@@ -1,0 +1,323 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Acceso Oficial | Cancha El Chulo{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Ocultamos elementos de navegación para dar inmersión total */
+    .navbar { display: none !important; }
+    .main-content { margin-top: 0 !important; padding-bottom: 0 !important; padding-top: 0 !important; }
+    
+    body {
+        background-color: #f8fafc;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        font-family: 'Inter', -apple-system, sans-serif;
+    }
+
+    /* ==========================================
+       COLUMNA IZQUIERDA: DISEÑO "CLEAN SPORT"
+       ========================================== */
+    .login-cover {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        position: relative;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        padding: 4rem;
+        color: white;
+        overflow: hidden;
+    }
+
+    .login-cover::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+        background-size: 32px 32px;
+        opacity: 0.8;
+    }
+
+    .logo-glow {
+        position: absolute;
+        width: 400px;
+        height: 400px;
+        background: #0ea5e9; /* Azul primario brillante */
+        filter: blur(120px);
+        opacity: 0.15;
+        border-radius: 50%;
+        z-index: 0;
+        animation: pulseGlow 4s ease-in-out infinite alternate;
+    }
+
+    @keyframes pulseGlow {
+        0% { transform: scale(0.9); opacity: 0.1; }
+        100% { transform: scale(1.1); opacity: 0.25; }
+    }
+
+    .hero-logo {
+        position: relative;
+        z-index: 1;
+        max-width: 250px;
+        filter: drop-shadow(0 15px 25px rgba(0,0,0,0.4));
+        transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .hero-logo:hover { transform: scale(1.05) rotate(-2deg); }
+
+    /* ==========================================
+       COLUMNA DERECHA: FORMULARIO PREMIUM
+       ========================================== */
+    .login-form-container {
+        height: 100vh;
+        overflow-y: auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #ffffff;
+    }
+
+    .form-wrapper {
+        width: 100%;
+        max-width: 440px;
+        padding: 2rem 2.5rem;
+    }
+
+    /* Inputs Flotantes Estilo Apple/Google */
+    .form-floating > .form-control {
+        border: 1px solid #cbd5e1;
+        border-radius: 12px;
+        background-color: #f8fafc;
+        color: #0f172a;
+        font-weight: 600;
+        transition: all 0.25s ease;
+        padding-top: 1.625rem;
+        padding-bottom: 0.625rem;
+    }
+    
+    .form-floating > .form-control:focus {
+        border-color: #0ea5e9;
+        background-color: #ffffff;
+        box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.15);
+    }
+    
+    .form-floating > label {
+        color: #64748b;
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+
+    /* Botón del ojito de la contraseña */
+    .toggle-password-btn {
+        position: absolute;
+        top: 50%;
+        right: 15px;
+        transform: translateY(-50%);
+        background: transparent;
+        border: none;
+        color: #94a3b8;
+        cursor: pointer;
+        z-index: 10;
+        padding: 5px;
+        transition: color 0.2s;
+    }
+    .toggle-password-btn:hover { color: #0ea5e9; }
+    .toggle-password-btn:focus { outline: none; }
+
+    /* Botón de Ingreso Principal */
+    .btn-login-pro {
+        background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+        color: white;
+        font-weight: 800;
+        font-size: 1.05rem;
+        letter-spacing: 0.5px;
+        padding: 14px;
+        border-radius: 12px;
+        border: none;
+        width: 100%;
+        box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    .btn-login-pro:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(14, 165, 233, 0.4);
+        background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+    }
+
+    /* Checkbox personalizado */
+    .form-check-input { width: 1.2em; height: 1.2em; border-color: #cbd5e1; cursor: pointer; }
+    .form-check-input:checked { background-color: #0ea5e9; border-color: #0ea5e9; }
+
+    /* --- CAJA DE REGISTRO INTUITIVA --- */
+    .register-box {
+        background: #f8fafc;
+        border: 1px dashed #cbd5e1;
+        border-radius: 16px;
+        padding: 1.5rem;
+        text-align: center;
+        margin-top: 2rem;
+        transition: all 0.3s;
+    }
+    .register-box:hover {
+        background: #f0f9ff;
+        border-color: #bae6fd;
+        border-style: solid;
+    }
+    .btn-register-pro {
+        background-color: #ffffff;
+        color: #0f172a;
+        border: 1px solid #cbd5e1;
+        border-radius: 10px;
+        font-weight: 800;
+        padding: 10px 20px;
+        width: 100%;
+        display: inline-block;
+        text-decoration: none;
+        transition: all 0.2s;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+    }
+    .btn-register-pro:hover {
+        background-color: #0f172a;
+        color: #ffffff;
+        border-color: #0f172a;
+        transform: translateY(-2px);
+    }
+
+    @media (max-width: 991px) {
+        .form-wrapper { padding: 2rem 1.5rem; }
+    }
+</style>
+{% endblock %}
+
+{% block contenido %}
+<div class="row g-0 h-100 w-100">
+    
+    <div class="col-lg-6 col-xl-7 d-none d-lg-flex login-cover">
+        <div class="logo-glow"></div>
+        <img src="{% static 'img/logo_chulo_white.png' %}" alt="Logo Cancha El Chulo" class="img-fluid hero-logo mb-4 animate__animated animate__zoomIn">
+        
+        <div class="text-center position-relative z-1 animate__animated animate__fadeInUp animate__delay-1s">
+            <h1 class="fw-black text-white mb-3" style="letter-spacing: -1px; font-size: 3.5rem;">
+                Cancha El Chulo
+            </h1>
+            <p class="text-white-50 fs-5 mb-0 fw-medium">
+                La plataforma definitiva para tu equipo.
+            </p>
+            <div class="mt-4">
+                <span class="badge bg-white bg-opacity-10 text-white border border-white border-opacity-25 rounded-pill px-4 py-2 shadow-sm" style="backdrop-filter: blur(10px);">
+                    <i class="bi bi-shield-check text-success me-2"></i> Sangolquí, Ecuador
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-6 col-xl-5">
+        <div class="login-form-container">
+            <div class="form-wrapper animate__animated animate__fadeInRight">
+                
+                <div class="text-center d-lg-none mb-4">
+                    <div class="bg-dark rounded-circle d-inline-flex justify-content-center align-items-center shadow-sm" style="width: 75px; height: 75px; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);">
+                        <i class="bi bi-trophy-fill text-white fs-2"></i>
+                    </div>
+                </div>
+
+                <div class="mb-4 pb-2 text-center text-lg-start">
+                    <h2 class="fw-black text-dark mb-2" style="letter-spacing: -0.5px;">¡Bienvenido Crack! <span class="fs-3">👋</span></h2>
+                    <p class="text-muted fw-medium">Ingresa tus credenciales para continuar.</p>
+                </div>
+
+                {% if form.errors %}
+                    <div class="alert alert-danger border-0 bg-danger bg-opacity-10 text-danger rounded-3 d-flex align-items-center mb-4 shadow-sm animate__animated animate__shakeX p-3">
+                        <i class="bi bi-exclamation-octagon-fill me-3 fs-3"></i>
+                        <div class="fw-bold" style="font-size: 0.85rem; line-height: 1.3;">
+                            Credenciales incorrectas.<br><span class="fw-medium opacity-75">Por favor, revisa tus datos e inténtalo de nuevo.</span>
+                        </div>
+                    </div>
+                {% endif %}
+
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="form-floating mb-3 position-relative">
+                        <input type="text" name="username" class="form-control" id="floatingUser" placeholder="Usuario o Cédula" required autocomplete="username">
+                        <label for="floatingUser"><i class="bi bi-person-fill text-muted me-2"></i>Usuario o Cédula</label>
+                    </div>
+
+                    <div class="form-floating mb-3 position-relative">
+                        <input type="password" name="password" class="form-control pe-5" id="floatingPass" placeholder="Contraseña" required autocomplete="current-password">
+                        <label for="floatingPass"><i class="bi bi-lock-fill text-muted me-2"></i>Contraseña</label>
+                        
+                        <button type="button" class="toggle-password-btn" id="btnTogglePassword" title="Mostrar/Ocultar contraseña">
+                            <i class="bi bi-eye-fill fs-5" id="eyeIcon"></i>
+                        </button>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mb-4 px-1">
+                        <div class="form-check m-0 d-flex align-items-center">
+                            <input class="form-check-input shadow-sm me-2" type="checkbox" id="remember">
+                            <label class="form-check-label small text-muted fw-bold mt-1" for="remember" style="cursor: pointer; font-size: 0.8rem;">Recordarme</label>
+                        </div>
+                        
+                        <a href="{% url 'password_reset' %}" class="text-decoration-none small fw-bold" style="color: #0ea5e9; font-size: 0.8rem;">
+                            ¿Olvidaste tu clave?
+                        </a>
+                    </div>
+
+                    <button type="submit" class="btn-login-pro">
+                        INICIAR SESIÓN <i class="bi bi-box-arrow-in-right ms-2 fs-5"></i>
+                    </button>
+                </form>
+
+                <div class="register-box">
+                    <div class="mb-3">
+                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill px-3 py-1 mb-2">NUEVO EQUIPO</span>
+                        <h6 class="fw-black text-dark mb-1">¿Aún no tienes una cuenta?</h6>
+                        <p class="text-muted small m-0 lh-sm">Inscribe a tu club y administra tu plantilla totalmente gratis.</p>
+                    </div>
+                    <a href="{% url 'registro_publico' %}" class="btn-register-pro">
+                        CREAR CUENTA GRATIS
+                    </a>
+                </div>
+
+                <div class="mt-4 text-center">
+                     <a href="{% url 'dashboard' %}" class="text-muted small text-decoration-none fw-bold" style="transition: color 0.2s;">
+                        <i class="bi bi-arrow-left me-1"></i> Regresar al Inicio
+                    </a>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Lógica para mostrar/ocultar contraseña (se mantiene intacta)
+    document.addEventListener("DOMContentLoaded", function() {
+        const togglePassword = document.getElementById('btnTogglePassword');
+        const passwordInput = document.getElementById('floatingPass');
+        const eyeIcon = document.getElementById('eyeIcon');
+
+        togglePassword.addEventListener('click', function () {
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            
+            if (type === 'password') {
+                eyeIcon.classList.remove('bi-eye-slash-fill');
+                eyeIcon.classList.add('bi-eye-fill');
+                eyeIcon.classList.remove('text-primary');
+            } else {
+                eyeIcon.classList.remove('bi-eye-fill');
+                eyeIcon.classList.add('bi-eye-slash-fill');
+                eyeIcon.classList.add('text-primary'); 
+            }
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,119 @@
+{% extends 'core/base.html' %}
+
+{% block contenido %}
+<div class="row animate__animated animate__fadeIn">
+    <div class="col-12 mb-4 d-flex justify-content-between align-items-center">
+        <div>
+            <h2 class="text-primary-dark fw-bold mb-0">
+                <i class="bi bi-journal-text text-neon-green"></i> Historial de Pagos
+            </h2>
+            <p class="text-muted">
+                Seguimiento de abonos para: <span class="text-dark fw-bold text-uppercase">{{ equipo.nombre }}</span>
+            </p>
+        </div>
+        <a href="{% url 'gestionar_finanzas' %}" class="btn btn-outline-secondary btn-sm shadow-sm">
+            <i class="bi bi-arrow-left"></i> Volver a Finanzas
+        </a>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm mb-4 text-center p-4">
+            {% if equipo.escudo %}
+                <img src="{{ equipo.escudo.url }}" class="mx-auto rounded-circle mb-3 border border-light shadow-sm p-1" width="110" height="110" style="object-fit: cover;">
+            {% else %}
+                <div class="mx-auto rounded-circle bg-light d-flex align-items-center justify-content-center text-primary fw-bold mb-3 shadow-sm" style="width: 110px; height: 110px; font-size: 2.5rem; border: 2px solid #eee;">
+                    {{ equipo.nombre|slice:":1" }}
+                </div>
+            {% endif %}
+            
+            <h4 class="fw-bold text-dark mb-3">{{ equipo.nombre }}</h4>
+            
+            <div class="p-3 rounded-3 mb-3" style="background-color: #f8fafc; border: 1px solid #edf2f7;">
+                <div class="d-flex justify-content-between mb-2 small text-uppercase fw-semibold">
+                    <span class="text-muted">Total Abonado:</span>
+                    <span class="text-success">${{ equipo.total_pagado }}</span>
+                </div>
+                <div class="d-flex justify-content-between small text-uppercase fw-semibold">
+                    <span class="text-muted">Deuda Pendiente:</span>
+                    <span class="text-danger">${{ equipo.deuda_pendiente }}</span>
+                </div>
+            </div>
+
+            {% if equipo.deuda_pendiente > 0 %}
+            <div class="d-grid">
+                <a href="{% url 'registrar_pago' %}?equipo={{ equipo.id }}" class="btn btn-neon">
+                    <i class="bi bi-plus-circle me-1"></i> NUEVO ABONO
+                </a>
+            </div>
+            {% else %}
+            <div class="alert alert-success py-2 mb-0 small border-0">
+                <i class="bi bi-check-circle-fill"></i> EQUIPO AL DÍA
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header border-bottom py-3 d-flex align-items-center justify-content-between bg-white">
+                <h6 class="mb-0 fw-bold text-uppercase small" style="letter-spacing: 1px;">
+                    <i class="bi bi-list-stars text-success me-2"></i>Detalle de Transacciones
+                </h6>
+                <span class="badge bg-light text-dark border fw-normal">{{ pagos.count }} registros</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="small text-muted text-uppercase" style="background-color: #f8fafc;">
+                            <tr>
+                                <th class="ps-4 py-3 border-0">Fecha</th>
+                                <th class="py-3 border-0">Monto</th>
+                                <th class="py-3 border-0">Documentos</th>
+                                <th class="py-3 border-0">Observación</th>
+                            </tr>
+                        </thead>
+                        <tbody class="border-top-0">
+                            {% for pago in pagos %}
+                            <tr>
+                                <td class="ps-4">
+                                    <span class="fw-bold text-dark">{{ pago.fecha|date:"d M, Y" }}</span>
+                                    <small class="d-block text-muted" style="font-size: 0.7rem;">REF #{{ pago.id }}</small>
+                                </td>
+                                <td>
+                                    <span class="text-success fw-bold fs-5">${{ pago.monto }}</span>
+                                </td>
+                                <td>
+                                    <div class="btn-group shadow-sm">
+                                        <a href="{% url 'generar_recibo_pago_pdf' pago.id %}" target="_blank" class="btn btn-sm btn-white border" title="Descargar Recibo PDF">
+                                            <i class="bi bi-file-pdf text-danger"></i>
+                                        </a>
+                                        
+                                        {% if pago.comprobante %}
+                                            <a href="{{ pago.comprobante.url }}" target="_blank" class="btn btn-sm btn-white border" title="Ver Comprobante Original">
+                                                <i class="bi bi-image text-primary"></i>
+                                            </a>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="small text-muted">{{ pago.observacion|default:"Abono a cuenta" }}</span>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center py-5">
+                                    <div class="py-4">
+                                        <i class="bi bi-cash-stack fs-1 text-light d-block mb-3"></i>
+                                        <p class="text-muted mb-0">No se registran pagos previos para este equipo.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

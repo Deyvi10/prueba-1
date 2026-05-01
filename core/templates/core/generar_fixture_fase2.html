@@ -1,0 +1,51 @@
+{% extends 'core/base.html' %}
+{% block contenido %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>🗓️ Fixture de Grupos (Fase 2): <span class="text-primary">{{ torneo.nombre }}</span></h2>
+        <a href="{% url 'tabla_posiciones_f2' torneo.id %}" class="btn btn-secondary">Volver a Grupos</a>
+    </div>
+
+    <div class="alert alert-info">
+        <strong>Modo de juego:</strong> {% if ida_vuelta %}Ida y Vuelta{% else %}Solo Ida{% endif %}.
+        <br>Revisa los cruces generados para el <b>Grupo A</b> y <b>Grupo B</b> antes de enviarlos al sistema.
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body bg-light text-center">
+            <form method="POST" class="d-inline-flex gap-3">
+                {% csrf_token %}
+                <button type="submit" name="accion" value="guardar_db" class="btn btn-success btn-lg" onclick="return confirm('¿Subir partidos al calendario? Quedarán sin fecha/hora para que los programes después.');">
+                    💾 Subir Partidos al Calendario
+                </button>
+            </form>
+            <p class="text-muted mt-2 mb-0"><small><i>* Nota: Si ya habías subido el fixture de grupos, volver a darle clic aquí <b>lo sobreescribirá</b>.</i></small></p>
+        </div>
+    </div>
+
+    <div class="row">
+        {% for jornada in fixture %}
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-dark text-white text-center">
+                    <h5 class="mb-0">Fecha {{ jornada.numero_fecha }}</h5>
+                </div>
+                <ul class="list-group list-group-flush">
+                    {% for partido in jornada.partidos %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span class="fw-bold w-50 text-end text-primary">
+                                {% if partido.local %}{{ partido.local.nombre }} (G-{{ partido.local.grupo_fase2 }}){% else %}DESCANSO{% endif %}
+                            </span>
+                            <span class="mx-3 text-muted">vs</span>
+                            <span class="fw-bold w-50 text-start text-danger">
+                                {% if partido.visita %}{{ partido.visita.nombre }} (G-{{ partido.visita.grupo_fase2 }}){% else %}DESCANSO{% endif %}
+                            </span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

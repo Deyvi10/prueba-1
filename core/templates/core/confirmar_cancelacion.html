@@ -1,0 +1,39 @@
+{% extends 'core/base.html' %}
+{% block contenido %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6">
+        <div class="card border-danger shadow">
+            <div class="card-header bg-danger text-white">
+                <h4 class="m-0"><i class="bi bi-exclamation-triangle-fill me-2"></i>Confirmar Cancelación</h4>
+            </div>
+            <div class="card-body text-center p-5">
+                <h5 class="text-muted mb-4">Estás a punto de cancelar:</h5>
+                <h3 class="fw-bold mb-4">{{ tipo }}</h3>
+
+                <div class="alert alert-light border">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Multa por cancelación:</span>
+                        <span class="text-danger fw-bold">-${{ multa }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between pt-2 border-top">
+                        <span>Monto a Reembolsar:</span>
+                        <span class="text-success fw-bold fs-5">${{ reembolso }}</span>
+                    </div>
+                </div>
+
+                {% if extra_info %}
+                    <p class="small text-muted">{{ extra_info }}</p>
+                {% endif %}
+
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="d-grid gap-2 d-md-flex justify-content-center mt-4">
+                        <a href="javascript:history.back()" class="btn btn-light px-4">Volver</a>
+                        <button type="submit" class="btn btn-danger px-4 fw-bold">Confirmar Cancelación</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

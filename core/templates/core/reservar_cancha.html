@@ -1,0 +1,216 @@
+{% extends 'core/base.html' %}
+
+{% block contenido %}
+<div class="container animate__animated animate__fadeIn">
+
+    <div class="text-center mb-5 mt-4">
+        <h6 class="text-uppercase fw-bold ls-1 mb-2" style="color: var(--accent-green);">
+            <i class="bi bi-clock-history me-1"></i> Alquiler de Cancha
+        </h6>
+        <h2 class="display-5 fw-bold mb-3" style="color: var(--primary-dark);">Reserva tu Turno</h2>
+        <p class="text-muted fs-5">Selecciona una fecha disponible y escoge tus horarios.</p>
+    </div>
+
+    <div class="row g-4">
+        
+        <div class="col-lg-4">
+            
+            <div class="card card-pro p-4 mb-4">
+                <label class="fw-bold mb-2" style="color: var(--primary-dark);">
+                    <i class="bi bi-calendar2-week me-2 text-success"></i>1. Elige el Día:
+                </label>
+                <input type="date" id="selectorFecha" class="form-control form-control-lg fw-bold text-center border-secondary-subtle bg-light" 
+                       value="{{ fecha_seleccionada|date:'Y-m-d' }}" min="{{ manana|date:'Y-m-d' }}">
+                <small class="text-muted text-center d-block mt-2" style="font-size: 0.75rem;">
+                    * Reservas con mínimo 24h de anticipación.
+                </small>
+            </div>
+
+            <div class="card card-pro p-3 mb-4 bg-light border-0">
+                <div class="d-flex flex-wrap justify-content-center gap-3 text-small fw-medium text-muted">
+                    <div><span class="badge bg-success me-1 rounded-circle p-2 shadow-sm"></span> Libre</div>
+                    <div><span class="badge bg-warning me-1 rounded-circle p-2 shadow-sm"></span> En Revisión</div>
+                    <div><span class="badge bg-danger me-1 rounded-circle p-2 shadow-sm"></span> Ocupado</div>
+                    <div><span class="badge bg-primary me-1 rounded-circle p-2 shadow-sm"></span> Torneo</div>
+                </div>
+            </div>
+
+            <div class="card card-pro border-0 overflow-hidden mb-4">
+                <div class="card-body text-center p-4" style="background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-light) 100%);">
+                    <h6 class="text-white-50 text-uppercase small fw-bold tracking-wide">Total a Pagar</h6>
+                    <h1 class="display-3 fw-bold mb-0 text-white" id="displayTotal">$0.00</h1>
+                </div>
+                <div class="card-footer bg-white text-center py-2 border-0">
+                    <small class="text-muted fw-semibold"><i class="bi bi-info-circle-fill me-1 text-success"></i> Tarifa variable según horario</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card card-pro p-4 h-100">
+                <h5 class="fw-bold mb-4 border-bottom pb-3" style="color: var(--primary-dark);">
+                    Horarios para: <span style="color: var(--accent-green);">{{ fecha_seleccionada|date:"l, d F Y" }}</span>
+                </h5>
+                
+                <div class="row g-3 mb-5">
+                    {% for bloque in horarios %}
+                        <div class="col-6 col-md-4 col-lg-3">
+                            
+                            {% if bloque.estado == 'LIBRE' %}
+                                <button type="button" 
+                                        class="btn btn-outline-success w-100 py-3 fw-bold slot-btn shadow-sm d-flex flex-column align-items-center justify-content-center" style="border-width: 2px;"
+                                        data-start="{{ bloque.valor_inicio }}"
+                                        data-end="{{ bloque.valor_fin }}"
+                                        data-precio="{{ bloque.precio }}"
+                                        onclick="seleccionarBloque(this)">
+                                    <span class="fs-5">{{ bloque.valor_inicio|slice:":5" }}</span>
+                                    <small class="badge bg-success bg-opacity-25 text-success mt-1 border-0">${{ bloque.precio }}</small>
+                                </button>
+                                
+                            {% elif bloque.estado == 'PENDIENTE' %}
+                                <div class="btn w-100 py-3 disabled fw-bold d-flex flex-column align-items-center justify-content-center" style="background-color: rgba(245, 158, 11, 0.1); color: #d97706; border: 1px dashed #d97706; cursor: not-allowed;" title="Esperando aprobación">
+                                    <span class="fs-6"><i class="bi bi-hourglass-split me-1"></i> REVISIÓN</span>
+                                </div>
+                                
+                            {% elif bloque.estado == 'TORNEO' %}
+                                <div class="btn w-100 py-3 disabled fw-bold d-flex flex-column align-items-center justify-content-center" style="background-color: rgba(59, 130, 246, 0.1); color: #2563eb; border: 1px dashed #2563eb; cursor: not-allowed;">
+                                    <span class="fs-6"><i class="bi bi-trophy-fill me-1"></i> TORNEO</span>
+                                </div>
+                                
+                            {% else %}
+                                <div class="btn w-100 py-3 disabled fw-bold d-flex flex-column align-items-center justify-content-center" style="background-color: rgba(239, 68, 68, 0.1); color: #dc2626; border: 1px dashed #dc2626; cursor: not-allowed;">
+                                    <span class="fs-6">OCUPADO</span>
+                                </div>
+                            {% endif %}
+                            
+                        </div>
+                    {% empty %}
+                        <div class="col-12 text-center text-muted py-5 rounded-4 border border-dashed bg-light">
+                            <i class="bi bi-calendar-x opacity-25" style="font-size: 3rem;"></i><br>
+                            No hay horarios configurados para este día.
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <div class="bg-light p-4 rounded-4 border border-secondary-subtle">
+                    <h6 class="fw-bold mb-3" style="color: var(--primary-dark);"><i class="bi bi-check-circle-fill text-success me-2"></i>Confirma tu selección:</h6>
+                    
+                    <form method="post" id="formReservaFinal">
+                        {% csrf_token %}
+                        <input type="hidden" name="fecha" value="{{ fecha_seleccionada|date:'Y-m-d' }}">
+                        <input type="hidden" name="precio_total" id="inputPrecioTotal" value="0.00">
+                        
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-4">
+                                <label class="small text-muted fw-bold mb-1">HORA INICIO</label>
+                                <input type="text" name="hora_inicio" id="finalInicio" class="form-control bg-white text-center fw-bold text-dark border-secondary-subtle" readonly placeholder="--:--">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="small text-muted fw-bold mb-1">HORA FIN</label>
+                                <input type="text" name="hora_fin" id="finalFin" class="form-control bg-white text-center fw-bold text-dark border-secondary-subtle" readonly placeholder="--:--">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="small text-muted fw-bold mb-1">CUPÓN (OPCIONAL)</label>
+                                {{ form.codigo_cupon }}
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-sport btn-lg fw-bold shadow-sm" id="btnConfirmar" disabled>
+                                CONFIRMAR RESERVA <i class="bi bi-check-circle-fill ms-2 fs-5"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 1. RECARGAR PÁGINA AL CAMBIAR FECHA
+    document.getElementById('selectorFecha').addEventListener('change', function() {
+        window.location.href = '?fecha=' + this.value;
+    });
+
+    let bloquesSeleccionados = [];
+    let sumaTotal = 0.0;
+
+    function seleccionarBloque(btn) {
+        const start = btn.getAttribute('data-start');
+        const precio = parseFloat(btn.getAttribute('data-precio').replace(',', '.')); // Leemos el precio real del botón
+        
+        if (btn.classList.contains('active')) {
+            // Deseleccionar
+            btn.classList.remove('active', 'btn-success', 'text-white', 'shadow-lg');
+            btn.classList.add('btn-outline-success');
+            btn.style.transform = "scale(1)";
+            
+            // Remover del array y restar precio
+            bloquesSeleccionados = bloquesSeleccionados.filter(b => b.start !== start);
+            sumaTotal -= precio;
+        } else {
+            // Seleccionar
+            btn.classList.remove('btn-outline-success');
+            btn.classList.add('active', 'btn-success', 'text-white', 'shadow-lg');
+            btn.style.transform = "scale(1.05)";
+            
+            // Añadir al array y sumar precio
+            bloquesSeleccionados.push({ start: start, precio: precio });
+            sumaTotal += precio;
+        }
+
+        // Ordenar los bloques seleccionados por la hora de inicio
+        bloquesSeleccionados.sort((a, b) => a.start.localeCompare(b.start));
+        actualizarFormulario();
+    }
+
+    function actualizarFormulario() {
+        const inputInicio = document.getElementById('finalInicio');
+        const inputFin = document.getElementById('finalFin');
+        const displayTotal = document.getElementById('displayTotal');
+        const inputPrecioTotal = document.getElementById('inputPrecioTotal');
+        const btnConfirmar = document.getElementById('btnConfirmar');
+
+        if (bloquesSeleccionados.length > 0) {
+            const primerBloque = bloquesSeleccionados[0].start;
+            const ultimoBloque = bloquesSeleccionados[bloquesSeleccionados.length - 1].start;
+            const horaFinInt = parseInt(ultimoBloque.split(':')[0]) + 1;
+            const horaFinStr = horaFinInt.toString().padStart(2, '0') + ":00";
+
+            // Validar continuidad
+            let esContinuo = true;
+            for (let i = 0; i < bloquesSeleccionados.length - 1; i++) {
+                const actual = parseInt(bloquesSeleccionados[i].start.split(':')[0]);
+                const siguiente = parseInt(bloquesSeleccionados[i+1].start.split(':')[0]);
+                if (siguiente !== actual + 1) {
+                    esContinuo = false;
+                    break;
+                }
+            }
+
+            if (!esContinuo) {
+                alert("⚠️ Por favor selecciona horarios consecutivos. No puedes dejar horas vacías en el medio.");
+                location.reload(); 
+                return;
+            }
+
+            inputInicio.value = primerBloque;
+            inputFin.value = horaFinStr;
+            
+            // Mostrar y guardar el total sumado de cada hora independiente
+            displayTotal.innerText = "$" + Math.max(0, sumaTotal).toFixed(2);
+            inputPrecioTotal.value = Math.max(0, sumaTotal).toFixed(2);
+            btnConfirmar.disabled = false;
+
+        } else {
+            inputInicio.value = "";
+            inputFin.value = "";
+            displayTotal.innerText = "$0.00";
+            inputPrecioTotal.value = "0.00";
+            btnConfirmar.disabled = true;
+        }
+    }
+</script>
+{% endblock %}

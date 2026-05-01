@@ -1,0 +1,90 @@
+{% extends 'core/base.html' %}
+{% load humanize %}
+
+{% block contenido %}
+<div class="container animate__animated animate__fadeIn">
+    
+    <div class="text-center mb-5 mt-4">
+        <h6 class="text-uppercase fw-bold ls-1 mb-2" style="color: var(--accent-green);">
+            <i class="bi bi-trophy-fill me-1"></i> Competencias Abiertas
+        </h6>
+        <h2 class="display-5 fw-bold mb-3" style="color: var(--primary-dark);">Únete al Campeonato</h2>
+        <p class="text-muted fs-5">Elige el torneo y registra a tu equipo para competir por la gloria.</p>
+    </div>
+
+    {% if torneos %}
+        <div class="row g-4 justify-content-center">
+            {% for t in torneos %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card card-pro h-100">
+                    
+                    <div class="card-header bg-transparent border-bottom-0 pt-4 px-4 pb-0">
+                        <span class="badge rounded-pill mb-3" style="background-color: rgba(16, 185, 129, 0.1); color: var(--accent-green-dark); border: 1px solid rgba(16, 185, 129, 0.2); padding: 8px 14px; font-weight: 600;">
+                            <i class="bi bi-calendar-event me-1"></i> Inicio: {{ t.fecha_inicio|date:"d M Y" }}
+                        </span>
+                        <h3 class="fw-bold mb-2" style="color: var(--primary-dark);">{{ t.nombre }}</h3>
+                        <p class="text-muted small mb-0">
+                            <i class="bi bi-person-badge me-1"></i>Org: {{ t.organizador.first_name }} {{ t.organizador.last_name }}
+                        </p>
+                    </div>
+
+                    <div class="card-body px-4 mt-3">
+                        <div class="d-flex justify-content-between align-items-center rounded-4 p-3 mb-4 shadow-sm" style="background-color: var(--bg-body); border: 1px solid rgba(0,0,0,0.03);">
+                            <span class="small fw-bold" style="color: var(--text-main); letter-spacing: 0.5px;">INSCRIPCIÓN</span>
+                            <div class="text-end lh-1">
+                                <span class="fs-3 fw-bold" style="color: var(--accent-green);">
+                                    ${{ t.costo_inscripcion|intcomma }}
+                                </span>
+                                <small class="text-muted d-block mt-1 fw-medium" style="font-size: 0.7rem;">Precio Neto</small>
+                            </div>
+                        </div>
+
+                        <ul class="list-unstyled text-muted small mb-2 px-1">
+                            <li class="mb-3 d-flex align-items-center">
+                                <i class="bi bi-check-circle-fill fs-5 me-3" style="color: var(--accent-green);"></i>
+                                <span class="fw-medium">Cupos limitados</span>
+                            </li>
+                            <li class="mb-3 d-flex align-items-center">
+                                <i class="bi bi-cash-coin fs-5 me-3" style="color: var(--accent-green);"></i>
+                                <span class="fw-medium">Premios en efectivo</span>
+                            </li>
+                            <li class="d-flex align-items-center">
+                                <i class="bi bi-shield-check fs-5 me-3" style="color: var(--accent-green);"></i>
+                                <span class="fw-medium">Arbitraje profesional</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="card-footer bg-transparent border-0 px-4 pb-4">
+                        {% if user.is_authenticated and t.id in mis_torneos_ids %}
+                            <div class="d-grid">
+                                <button class="btn btn-light w-100 py-3 fw-bold rounded-pill text-muted border shadow-sm" disabled>
+                                    <i class="bi bi-clock-history me-2"></i>Solicitud Pendiente
+                                </button>
+                                <small class="text-center text-muted mt-3 fw-semibold" style="font-size: 0.75rem;">
+                                    <i class="bi bi-info-circle me-1 text-info"></i> Ya has reservado cupo aquí
+                                </small>
+                            </div>
+                        {% else %}
+                            <a href="{% url 'solicitar_inscripcion' t.id %}" class="btn btn-sport w-100 py-3 d-flex justify-content-center align-items-center rounded-pill">
+                                Inscribir Equipo <i class="bi bi-arrow-right-circle-fill ms-2 fs-5 opacity-75"></i>
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+    {% else %}
+        <div class="text-center py-5 my-5">
+            <div class="rounded-circle d-inline-flex align-items-center justify-content-center mb-4 shadow-sm" style="width: 110px; height: 110px; background-color: var(--bg-body); border: 1px solid rgba(0,0,0,0.05);">
+                <i class="bi bi-calendar-x text-muted" style="font-size: 3rem; opacity: 0.5;"></i>
+            </div>
+            <h4 class="fw-bold" style="color: var(--primary-dark);">No hay torneos activos</h4>
+            <p class="text-muted mb-4 fs-5">En este momento no hay inscripciones abiertas.<br>¡Vuelve pronto!</p>
+            <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary rounded-pill px-5 py-2 fw-bold">Volver al Inicio</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

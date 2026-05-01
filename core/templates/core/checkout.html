@@ -1,0 +1,52 @@
+{% extends 'core/base.html' %}
+
+{% block contenido %}
+<div class="container animate__animated animate__fadeIn">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5 mt-4">
+            
+            <div class="text-center mb-4">
+                <div class="rounded-circle d-inline-flex align-items-center justify-content-center shadow-sm mb-3" style="width: 70px; height: 70px; background-color: #25D366; border: 4px solid rgba(37, 211, 102, 0.2);">
+                    <i class="bi bi-whatsapp text-white fs-1"></i>
+                </div>
+                <h3 class="fw-bold" style="color: var(--primary-dark);">Confirmar Reserva</h3>
+                <p class="text-muted">Paso final: Envía los detalles por WhatsApp</p>
+            </div>
+
+            <div class="card card-pro p-4 mb-4">
+                <h6 class="fw-bold border-bottom pb-2 mb-3" style="color: var(--primary-dark);">Resumen de tu Turno</h6>
+                
+                <ul class="list-unstyled mb-0 text-muted">
+                    <li class="d-flex justify-content-between mb-3">
+                        <span><i class="bi bi-calendar-event me-2"></i>Fecha:</span>
+                        <strong class="text-dark">{{ datos.fecha }}</strong>
+                    </li>
+                    <li class="d-flex justify-content-between mb-3">
+                        <span><i class="bi bi-clock me-2"></i>Horario:</span>
+                        <strong class="text-dark">{{ datos.hora_inicio }} - {{ datos.hora_fin }}</strong>
+                    </li>
+                    <li class="d-flex justify-content-between pt-3 border-top">
+                        <span class="fs-5 fw-bold text-dark">Total a Pagar:</span>
+                        <span class="fs-4 fw-bold" style="color: var(--accent-green);">${{ datos.precio_fijo }}</span>
+                    </li>
+                </ul>
+            </div>
+
+            <form method="POST">
+                {% csrf_token %}
+                <button type="submit" class="btn w-100 py-3 fw-bold shadow-lg rounded-pill text-white fs-5" style="background: #25D366; transition: all 0.3s ease;">
+                    <i class="bi bi-whatsapp me-2"></i> Confirmar por WhatsApp
+                </button>
+                <div class="text-center mt-3">
+                    <small class="text-muted"><i class="bi bi-shield-lock-fill text-success me-1"></i> Tu turno quedará reservado automáticamente</small>
+                </div>
+            </form>
+            
+            <div class="text-center mt-4">
+                <a href="{% url 'reservar_cancha' %}" class="btn btn-link text-muted text-decoration-none">← Cancelar y Volver</a>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

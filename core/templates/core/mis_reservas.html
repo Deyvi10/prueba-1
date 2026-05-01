@@ -1,0 +1,130 @@
+{% extends 'core/base.html' %}
+
+{% block contenido %}
+<div class="container-fluid px-0 animate__animated animate__fadeInUp">
+    
+    <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between mb-4 pb-3 border-bottom">
+        <div>
+            <h3 class="fw-black text-dark mb-0" style="letter-spacing: -0.5px;">
+                <i class="bi bi-receipt text-success me-2"></i>Mis Reservas
+            </h3>
+            <p class="text-muted small mb-0">Gestiona tus turnos y confirma tus pagos pendientes.</p>
+        </div>
+        
+        <div class="mt-3 mt-md-0">
+            <a href="{% url 'reservar_cancha' %}" class="btn btn-dark fw-bold rounded-pill px-4 shadow-sm">
+                <i class="bi bi-plus-lg me-1"></i> Nueva Reserva
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-5">
+        {% for r in reservas %}
+        
+        <div class="col-md-6 col-lg-4 {% if r.estado == 'CANCELADA' %}opacity-50 order-last{% endif %}">
+            
+            <div class="card card-pro h-100 border-0 shadow-sm ticket-card {% if r.estado == 'PENDIENTE' %}border-warning{% elif r.estado == 'ACTIVA' %}border-success{% else %}border-secondary grayscale-effect{% endif %}" style="border-top: 4px solid;">
+                
+                <div class="card-body p-4 position-relative">
+                    
+                    {% if r.estado == 'CANCELADA' %}
+                        <div class="position-absolute top-50 start-50 translate-middle text-danger fw-black opacity-10" style="font-size: 3rem; transform: translate(-50%, -50%) rotate(-15deg) !important; pointer-events: none;">
+                            ANULADO
+                        </div>
+                    {% endif %}
+
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="badge bg-light text-dark border px-3 py-2 rounded-pill fw-bold" style="font-size: 0.8rem;">
+                            <i class="bi bi-calendar2-event me-1 text-primary"></i> {{ r.fecha|date:"d M Y" }}
+                        </span>
+                        
+                        {% if r.estado == 'ACTIVA' %}
+                            <span class="badge bg-success bg-opacity-10 text-success border border-success px-3 py-1 rounded-pill">CONFIRMADA</span>
+                        {% elif r.estado == 'PENDIENTE' %}
+                            <span class="badge bg-warning bg-opacity-10 text-warning border border-warning px-3 py-1 rounded-pill"><i class="bi bi-clock me-1"></i> PENDIENTE</span>
+                        {% else %}
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary px-3 py-1 rounded-pill">CANCELADA</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="text-center py-3 bg-light rounded-3 mb-3 border border-dashed">
+                        <h3 class="fw-black mb-0 text-dark" style="letter-spacing: 1px;">
+                            {{ r.hora_inicio|time:"H:i" }} <span class="text-muted fw-light mx-1">-</span> {{ r.hora_fin|time:"H:i" }}
+                        </h3>
+                    </div>
+
+                    <p class="text-muted small mb-0 fw-medium d-flex align-items-center">
+                        <i class="bi bi-geo-alt-fill text-success fs-5 me-2"></i> Cancha Principal El Chulo
+                    </p>
+
+                    <div class="mt-3 pt-3 border-top d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-muted fw-bold d-block" style="font-size: 0.65rem; letter-spacing: 1px;">TOTAL</small>
+                            <span class="fw-black fs-4 text-dark">${{ r.precio_total }}</span>
+                        </div>
+                        
+                        <div class="text-end z-index-1">
+                            {% if r.estado == 'PENDIENTE' %}
+                                <a href="https://wa.me/593964049283?text=Hola Cancha El Chulo, deseo notificar el pago de mi reserva de las *{{ r.hora_inicio|time:'H:i' }}* del día *{{ r.fecha|date:'d/m/Y' }}*. Mi usuario es {{ user.username }}." 
+                                   target="_blank" 
+                                   class="btn btn-sm btn-success rounded-pill px-3 shadow-sm fw-bold">
+                                   <i class="bi bi-whatsapp me-1"></i> Pagar
+                                </a>
+                            {% elif r.estado == 'ACTIVA' %}
+                                <a href="{% url 'cancelar_reserva' r.id %}" class="btn btn-sm btn-light border text-danger fw-bold rounded-pill px-3 transition-all cancel-btn">
+                                   Cancelar
+                                </a>
+                            {% elif r.estado == 'CANCELADA' %}
+                                <button class="btn btn-sm btn-outline-secondary rounded-pill fw-bold" onclick="this.closest('.col-md-6').style.display='none';">
+                                    <i class="bi bi-eye-slash me-1"></i> Ocultar
+                                </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        
+        <div class="col-12 text-center py-5 rounded-4 border border-dashed bg-white mt-4 shadow-sm">
+            <div class="rounded-circle d-inline-flex align-items-center justify-content-center mb-4 bg-light shadow-sm border border-white" style="width: 100px; height: 100px; border-width: 4px !important;">
+                <i class="bi bi-calendar-x text-muted opacity-50 display-4"></i>
+            </div>
+            <h4 class="fw-black text-dark">Aún no tienes reservas</h4>
+            <p class="text-muted mb-4 fs-6">Agenda tu primer partido en nuestra cancha de césped sintético.</p>
+            <a href="{% url 'reservar_cancha' %}" class="btn btn-dark rounded-pill px-5 py-3 fw-bold shadow-sm" style="font-size: 1.1rem;">
+                Reservar Mi Primer Turno <i class="bi bi-arrow-right ms-2"></i>
+            </a>
+        </div>
+        
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+    .ticket-card {
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s;
+    }
+    .ticket-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 30px rgba(0,0,0,0.08) !important;
+    }
+    
+    .cancel-btn:hover {
+        background-color: #fee2e2 !important; /* Rojo super clarito */
+        border-color: #ef4444 !important;
+    }
+
+    /* Ocultar sutilmente las canceladas (Blanco y Negro) */
+    .grayscale-effect { 
+        filter: grayscale(100%); 
+        transition: all 0.3s; 
+    }
+    .grayscale-effect:hover { 
+        filter: grayscale(0%); 
+        opacity: 1 !important; 
+    }
+    
+    .border-dashed { border-style: dashed !important; border-width: 2px !important; border-color: #e2e8f0 !important; }
+</style>
+{% endblock %}

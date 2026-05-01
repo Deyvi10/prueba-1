@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+{% load humanize %}
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Comprobante de Pago</title>
+    <style>
+        @page { 
+            size: A5 landscape; /* Formato medio oficio horizontal */
+            margin: 1cm; 
+        }
+        body { 
+            font-family: Helvetica, Arial, sans-serif; 
+            color: #333; 
+            font-size: 12px;
+        }
+        
+        /* Encabezado */
+        .header { 
+            text-align: center; 
+            border-bottom: 2px solid #000; 
+            padding-bottom: 10px; 
+            margin-bottom: 20px;
+        }
+        .empresa { font-size: 16px; font-weight: bold; text-transform: uppercase; }
+        .subtitulo { font-size: 10px; color: #555; }
+        .titulo-doc { 
+            font-size: 18px; 
+            font-weight: 900; 
+            margin-top: 10px; 
+            border: 1px solid #333; 
+            display: inline-block; 
+            padding: 5px 15px; 
+            background-color: #f8f9fa;
+        }
+
+        /* Datos Generales */
+        .info-grid {
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        .info-label { font-weight: bold; color: #555; width: 15%; }
+        .info-val { border-bottom: 1px dotted #999; width: 35%; padding-bottom: 2px;}
+
+        /* Tabla de Valores */
+        .tabla-valores {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        .tabla-valores th {
+            background-color: #eee;
+            border: 1px solid #333;
+            padding: 8px;
+            text-align: center;
+        }
+        .tabla-valores td {
+            border: 1px solid #333;
+            padding: 8px;
+        }
+        .col-concepto { width: 70%; }
+        .col-monto { width: 30%; text-align: right; }
+        
+        /* Totales */
+        .total-row td { border: none; padding: 4px 8px; }
+        .gran-total { 
+            font-size: 16px; 
+            background-color: #eee; 
+            border: 2px solid #000 !important;
+        }
+
+        /* Firmas */
+        .firmas { margin-top: 40px; width: 100%; }
+        .firma-box { 
+            border-top: 1px solid #000; 
+            width: 35%; 
+            text-align: center; 
+            padding-top: 5px; 
+            font-size: 10px;
+        }
+
+        .footer { 
+            position: fixed; 
+            bottom: 0; 
+            left: 0; 
+            right: 0; 
+            text-align: center; 
+            font-size: 9px; 
+            color: #777;
+            border-top: 1px solid #ccc;
+            padding-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    
+    <div class="header">
+        <div class="empresa">SISTEMA DE GESTIÓN DEPORTIVA - FUTBOL PRO</div>
+        <div class="subtitulo">RUC: 1234567890001 | Dirección: Av. Principal y Estadio</div>
+        <div class="titulo-doc">RECIBO DE CAJA #{{ pago.id|stringformat:"05d" }}</div>
+    </div>
+
+    <table class="info-grid">
+        <tr>
+            <td class="info-label">Fecha:</td>
+            <td class="info-val">{{ pago.fecha|date:"d/m/Y H:i" }}</td>
+            <td class="info-label">Equipo:</td>
+            <td class="info-val" style="font-weight: bold; text-transform: uppercase;">{{ pago.equipo.nombre }}</td>
+        </tr>
+        <tr>
+            <td class="info-label">Recibimos de:</td>
+            <td class="info-val">{{ pago.equipo.dirigente.get_full_name|default:"Dirigente Encargado" }}</td>
+            <td class="info-label">Estado:</td>
+            <td class="info-val">CANCELADO / PAGADO</td>
+        </tr>
+    </table>
+
+    <table class="tabla-valores">
+        <thead>
+            <tr>
+                <th class="col-concepto">Concepto / Descripción</th>
+                <th class="col-monto">Valor</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td style="height: 50px; vertical-align: top;">
+                    <strong>{{ pago.observacion|default:"Pago por servicios deportivos / cancha" }}</strong>
+                    <br><br>
+                    <small><i>Correspondiente a gestión del torneo actual.</i></small>
+                </td>
+                <td style="vertical-align: top; text-align: right;">
+                    ${{ subtotal|floatform:2 }}
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <table style="width: 100%; margin-bottom: 20px;">
+        <tr>
+            <td style="width: 60%;"></td> <td style="width: 40%;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr class="total-row">
+                        <td style="text-align: right; font-weight: bold;">Subtotal:</td>
+                        <td style="text-align: right;">$ {{ subtotal|floatform:2 }}</td>
+                    </tr>
+                    <tr class="total-row">
+                        <td style="text-align: right; color: #555;">IVA ({{ iva_porcentaje }}%):</td>
+                        <td style="text-align: right; color: #555;">$ {{ iva_monto|floatform:2 }}</td>
+                    </tr>
+                    <tr class="total-row">
+                        <td class="gran-total" style="text-align: right; font-weight: 900;">TOTAL PAGADO:</td>
+                        <td class="gran-total" style="text-align: right; font-weight: 900;">$ {{ total|floatform:2 }}</td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+
+    <table class="firmas">
+        <tr>
+            <td style="width: 10%;"></td>
+            <td class="firma-box">
+                <strong>FUTBOL PRO</strong><br>
+                Firma Autorizada / Tesorería
+            </td>
+            <td style="width: 10%;"></td>
+            <td class="firma-box">
+                <strong>{{ pago.equipo.nombre }}</strong><br>
+                Recibí Conforme
+            </td>
+            <td style="width: 10%;"></td>
+        </tr>
+    </table>
+
+    <div class="footer">
+        Documento generado electrónicamente el {% now "d/m/Y H:i" %}. Válido como comprobante de pago interno.
+    </div>
+
+</body>
+</html>

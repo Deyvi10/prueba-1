@@ -1,0 +1,62 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Reserva Exitosa | Cancha El Chulo{% endblock %}
+
+{% block contenido %}
+<div class="row justify-content-center animate__animated animate__zoomIn">
+    <div class="col-md-6 col-lg-5">
+        <div class="card card-pro border-0 shadow-lg text-center overflow-hidden mt-4">
+            
+            <div class="bg-success bg-opacity-10 py-5 border-bottom border-success border-4">
+                <i class="bi bi-check-circle-fill text-success mb-3" style="font-size: 5rem;"></i>
+                <h2 class="fw-bold text-dark mb-0">¡Turno Separado!</h2>
+                <p class="text-muted mb-0 mt-2 px-4">Tu horario ha sido bloqueado en el sistema, pero necesita confirmación.</p>
+            </div>
+
+            <div class="card-body p-4 bg-white">
+                <div class="bg-light rounded-3 p-3 mb-4 text-start border border-secondary-subtle">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted small fw-bold">FECHA:</span>
+                        <span class="fw-bold text-dark">{{ reserva.fecha|date:"d M Y" }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted small fw-bold">HORARIO:</span>
+                        <span class="fw-bold text-dark">{{ reserva.hora_inicio|time:"H:i" }} a {{ reserva.hora_fin|time:"H:i" }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between pt-2 border-top">
+                        <span class="text-muted small fw-bold">TOTAL:</span>
+                        <span class="fw-bold text-success fs-5">${{ reserva.precio_total }}</span>
+                    </div>
+                </div>
+
+                <h6 class="fw-bold text-dark mb-3"><i class="bi bi-exclamation-circle-fill text-warning me-2"></i>Último Paso</h6>
+                <p class="small text-muted mb-4">Para que el administrador apruebe tu reserva, envía el comprobante de pago por WhatsApp ahora mismo.</p>
+
+                <a href="{{ url_whatsapp }}" target="_blank" class="btn btn-lg w-100 fw-bold shadow-sm d-flex align-items-center justify-content-center mb-3" style="background-color: #25D366; color: white; border-radius: 12px; transition: transform 0.2s;">
+                    <i class="bi bi-whatsapp fs-4 me-2"></i> Enviar Comprobante
+                </a>
+
+                <a href="{% url 'dashboard' %}" class="btn btn-light w-100 fw-bold rounded-pill text-muted">
+                    Volver al Inicio
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Efecto para que el botón de WhatsApp palpite suavemente e invite a hacer clic */
+    @keyframes pulse-green {
+        0% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.4); }
+        70% { box-shadow: 0 0 0 15px rgba(37, 211, 102, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0); }
+    }
+    .btn[href*="wa.me"] {
+        animation: pulse-green 2s infinite;
+    }
+    .btn[href*="wa.me"]:hover {
+        transform: translateY(-3px);
+        filter: brightness(1.05);
+    }
+</style>
+{% endblock %}

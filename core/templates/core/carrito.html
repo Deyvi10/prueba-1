@@ -1,0 +1,56 @@
+{% extends 'core/base.html' %}
+{% block contenido %}
+<div class="container animate__animated animate__fadeIn">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <h2 class="mb-4">🛒 Tu Carrito</h2>
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
+                        <div>
+                            <h5 class="fw-bold mb-1">Alquiler de Cancha</h5>
+                            <p class="text-muted mb-0">Fecha: {{ fecha }}</p>
+                        </div>
+                        <span class="badge bg-success">Pendiente de Pago</span>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-6">
+                            <small class="text-muted fw-bold">INICIO</small>
+                            <div class="fs-5">{{ inicio }}</div>
+                        </div>
+                        <div class="col-6 text-end">
+                            <small class="text-muted fw-bold">FIN</small>
+                            <div class="fs-5">{{ fin }}</div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-warning border-0 d-flex align-items-center">
+                        <i class="bi bi-info-circle-fill me-3 fs-4"></i>
+                        <div>
+                            <strong>Política de Cancelación</strong>
+                            <ul class="mb-0 small ps-3">
+                                <li>Más de 2 días antes: <strong>Reembolso 100%</strong></li>
+                                <li>Menos de 2 días: <strong>Multa 50%</strong></li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2 mt-4">
+                        {% if user.is_authenticated %}
+                            <a href="{% url 'checkout_pago' %}" class="btn btn-primary btn-lg fw-bold">
+                                Proceder al Pago <i class="bi bi-credit-card ms-2"></i>
+                            </a>
+                        {% else %}
+                            <a href="{% url 'login' %}?next={% url 'checkout_pago' %}" class="btn btn-warning btn-lg fw-bold text-dark">
+                                Iniciar Sesión para Pagar <i class="bi bi-box-arrow-in-right ms-2"></i>
+                            </a>
+                            <small class="text-center text-muted">Serás redirigido al pago automáticamente</small>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

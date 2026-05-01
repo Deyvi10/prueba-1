@@ -1,0 +1,232 @@
+{% extends 'core/base.html' %}
+
+{% block extra_css %}
+<style>
+    /* --- ESTILOS CLAROS Y LIMPIOS --- */
+    :root {
+        --clean-bg: #f3f4f6;
+        --clean-surface: #ffffff;
+        --clean-border: #e5e7eb;
+        --text-main: #1f2937;
+        --text-muted: #6b7280;
+        
+        --accent-blue: #0284c7;
+        --accent-green: #16a34a;
+        --accent-orange: #ea580c;
+        --accent-red: #dc2626;
+    }
+
+    body { background-color: var(--clean-bg); color: var(--text-main); }
+
+    .clean-card {
+        background-color: var(--clean-surface);
+        border: 1px solid var(--clean-border);
+        border-radius: 16px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+        overflow: hidden;
+    }
+
+    .clean-header {
+        background-color: #f9fafb;
+        border-bottom: 1px solid var(--clean-border);
+        padding: 1.2rem 1.5rem;
+    }
+
+    /* Estilo para los inputs del formulario generado por Django */
+    form input[type="text"], 
+    form input[type="number"], 
+    form input[type="datetime-local"], 
+    form input[type="date"], 
+    form input[type="time"], 
+    form select, 
+    form textarea {
+        display: block;
+        width: 100%;
+        padding: 0.6rem 1rem;
+        font-size: 1rem;
+        font-weight: 500;
+        line-height: 1.5;
+        color: #1f2937;
+        background-color: #ffffff;
+        background-clip: padding-box;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+
+    form input:focus, 
+    form select:focus, 
+    form textarea:focus {
+        border-color: var(--accent-blue);
+        outline: 0;
+        box-shadow: 0 0 0 4px rgba(2, 132, 199, 0.15);
+    }
+
+    form label {
+        font-weight: 700;
+        color: #374151;
+        margin-bottom: 0.4rem;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* Botones Modernos */
+    .btn-primary-clean {
+        background-color: var(--accent-blue);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 800;
+        transition: all 0.2s;
+    }
+    .btn-primary-clean:hover { background-color: #0369a1; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3); color: white;}
+    
+    .btn-outline-clean {
+        background-color: #ffffff;
+        color: #4b5563;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 700;
+        transition: all 0.2s;
+    }
+    .btn-outline-clean:hover { background-color: #f3f4f6; color: #111827; }
+
+    /* Zona de Corrección (Peligro) */
+    .danger-zone {
+        background-color: #fef2f2;
+        border: 1px dashed #f87171;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-top: 2rem;
+    }
+    
+    .danger-zone h6 {
+        color: #b91c1c;
+        font-weight: 900;
+        margin-bottom: 0.5rem;
+    }
+    
+    .danger-zone p {
+        color: #991b1b;
+        font-size: 0.85rem;
+    }
+
+    .btn-danger-clean {
+        background-color: #ffffff;
+        color: #dc2626;
+        border: 1px solid #fca5a5;
+        border-radius: 8px;
+        padding: 0.6rem 1rem;
+        font-weight: 800;
+        transition: all 0.2s;
+    }
+    .btn-danger-clean:hover { background-color: #dc2626; color: white; border-color: #dc2626; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3); }
+
+    /* Match Info Header */
+    .match-info-pill {
+        background: #f3f4f6;
+        border-radius: 50px;
+        padding: 5px 15px;
+        font-size: 0.85rem;
+        font-weight: 800;
+        color: #4b5563;
+        border: 1px solid #e5e7eb;
+    }
+</style>
+{% endblock %}
+
+{% block contenido %}
+<div class="container py-4 animate__animated animate__fadeIn">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            
+            <div class="d-flex align-items-center mb-3">
+                <a href="{% url 'programar_partidos' %}?torneo={{ partido.torneo.id }}" class="text-primary fw-bold text-decoration-none me-3">
+                    <i class="bi bi-arrow-left-short fs-4"></i> Volver
+                </a>
+            </div>
+
+            <div class="clean-card">
+                <div class="clean-header d-flex flex-column align-items-center justify-content-center text-center">
+                    <div class="d-flex w-100 justify-content-between align-items-start mb-3">
+                        <h5 class="fw-black text-dark mb-0"><i class="bi bi-calendar2-week text-primary me-2"></i>Editar Partido</h5>
+                        {% if partido.estado == 'JUG' %}
+                            <span class="badge bg-success shadow-sm px-3 py-2 rounded-pill"><i class="bi bi-check-circle-fill me-1"></i> JUGADO</span>
+                        {% elif partido.estado == 'WO' %}
+                            <span class="badge bg-danger shadow-sm px-3 py-2 rounded-pill"><i class="bi bi-x-circle-fill me-1"></i> W.O.</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark shadow-sm px-3 py-2 rounded-pill"><i class="bi bi-clock-fill me-1"></i> PENDIENTE</span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="match-info-pill w-100 d-flex justify-content-between align-items-center mt-2 shadow-sm">
+                        <span class="text-truncate" style="max-width: 40%;">{{ partido.equipo_local.nombre }}</span>
+                        <span class="badge bg-dark text-white mx-2">VS</span>
+                        <span class="text-truncate text-end" style="max-width: 40%;">{{ partido.equipo_visita.nombre }}</span>
+                    </div>
+                </div>
+
+                <div class="card-body p-4 bg-white">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="row g-3">
+                            {% for field in form %}
+                            <div class="col-12 {% if field.name == 'fecha_hora' or field.name == 'cancha' %}col-md-6{% endif %}">
+                                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {{ field }}
+                                {% if field.help_text %}
+                                    <small class="text-muted mt-1 d-block" style="font-size: 0.75rem;">{{ field.help_text }}</small>
+                                {% endif %}
+                                {% if field.errors %}
+                                    <div class="text-danger fw-bold mt-1" style="font-size: 0.8rem;">
+                                        <i class="bi bi-exclamation-circle me-1"></i>{{ field.errors|striptags }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="d-flex flex-column flex-md-row gap-2 mt-4 pt-3 border-top">
+                            <button type="submit" class="btn btn-primary-clean w-100 shadow-sm">
+                                <i class="bi bi-save2 me-2"></i>GUARDAR CAMBIOS
+                            </button>
+                            <a href="{% url 'programar_partidos' %}?torneo={{ partido.torneo.id }}" class="btn btn-outline-clean w-100 text-center text-decoration-none">
+                                Cancelar
+                            </a>
+                        </div>
+                    </form>
+
+                    {% if partido.estado == 'JUG' or partido.estado == 'WO' %}
+                    <div class="danger-zone shadow-sm">
+                        <h6><i class="bi bi-exclamation-triangle-fill me-2"></i>Zona de Corrección Administrativa</h6>
+                        <p class="mb-3">Si el resultado, goles o tarjetas fueron ingresados por error en la vocalía, puedes reiniciar el partido por completo.</p>
+                        <a href="{% url 'reiniciar_partido' partido.id %}" class="btn btn-danger-clean w-100 text-center text-decoration-none d-block" onclick="return confirm('⚠️ ADVERTENCIA CRÍTICA:\n\n¿Estás absolutamente seguro?\n\nAl confirmar, se borrarán TODOS los goles, asistencias y tarjetas de este partido y el estado volverá a PENDIENTE.')">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i> REINICIAR PARTIDO (BORRAR RESULTADO)
+                        </a>
+                    </div>
+                    {% endif %}
+
+                </div>
+            </div>
+            
+        </div>
+    </div>
+</div>
+
+<script>
+    // Pequeño script para asegurar que si Django manda selects o inputs sin clase, tomen el estilo correcto
+    document.addEventListener("DOMContentLoaded", function() {
+        const formElements = document.querySelectorAll('form input, form select, form textarea');
+        formElements.forEach(el => {
+            if(el.type !== 'hidden' && el.type !== 'checkbox' && el.type !== 'submit') {
+                // El CSS ya los afecta por etiqueta, pero podemos añadirles una clase si es necesario
+                el.classList.add('shadow-sm');
+            }
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,67 @@
+<div class="list-group-item bg-dark text-white border-secondary d-flex justify-content-between align-items-center mb-1">
+    <div class="d-flex align-items-center">
+        <span class="badge bg-secondary me-2" style="width: 30px;">{{ jugador.dorsal }}</span>
+        <div style="line-height: 1.1;">
+            <span class="fw-bold d-block">{{ jugador.nombres }}</span>
+            <small class="text-muted" style="font-size: 0.7rem;">{{ jugador.cedula }}</small>
+        </div>
+    </div>
+    
+    <div class="d-flex gap-1">
+        <form method="post">{% csrf_token %}
+            <input type="hidden" name="jugador_id" value="{{ jugador.id }}">
+            <input type="hidden" name="tipo" value="ASIS">
+            <button class="btn btn-sm btn-outline-success" title="Marcar Asistencia">✅</button>
+        </form>
+
+        <form method="post">{% csrf_token %}
+            <input type="hidden" name="jugador_id" value="{{ jugador.id }}">
+            <input type="hidden" name="tipo" value="GOL">
+            <button class="btn btn-sm btn-success fw-bold">⚽</button>
+        </form>
+
+        <div class="dropdown">
+            <button class="btn btn-sm btn-warning dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                ⚖️
+            </button>
+            <ul class="dropdown-menu dropdown-menu-dark">
+                <li>
+                    <form method="post">{% csrf_token %}
+                        <input type="hidden" name="jugador_id" value="{{ jugador.id }}">
+                        <input type="hidden" name="tipo" value="TA">
+                        <button class="dropdown-item text-warning fw-bold">🟨 Tarjeta Amarilla</button>
+                    </form>
+                </li>
+                <li>
+                    <form method="post">{% csrf_token %}
+                        <input type="hidden" name="jugador_id" value="{{ jugador.id }}">
+                        <input type="hidden" name="tipo" value="TR">
+                        <button class="dropdown-item text-danger fw-bold">🟥 Roja Directa</button>
+                    </form>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                    <form method="post">{% csrf_token %}
+                        <input type="hidden" name="jugador_id" value="{{ jugador.id }}">
+                        <input type="hidden" name="tipo" value="DA">
+                        <button class="dropdown-item">🟨🟨 Doble Amarilla</button>
+                    </form>
+                </li>
+                <li>
+                    <form method="post">{% csrf_token %}
+                        <input type="hidden" name="jugador_id" value="{{ jugador.id }}">
+                        <input type="hidden" name="tipo" value="AZUL">
+                        <button class="dropdown-item">👕 Mal Uniformado</button>
+                    </form>
+                </li>
+                <li>
+                    <form method="post">{% csrf_token %}
+                        <input type="hidden" name="jugador_id" value="{{ jugador.id }}">
+                        <input type="hidden" name="tipo" value="EBRI">
+                        <button class="dropdown-item">🍺 Estado Etílico</button>
+                    </form>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>

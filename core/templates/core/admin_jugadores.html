@@ -1,0 +1,147 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Directorio de Jugadores | Administración{% endblock %}
+
+{% block contenido %}
+<div class="container-fluid px-0 animate__animated animate__fadeInUp">
+    
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 pb-3 border-bottom">
+        <div class="mb-3 mb-md-0">
+            <span class="badge bg-danger bg-opacity-10 text-danger fw-bold px-3 py-2 mb-2 rounded-pill border border-danger border-opacity-25">
+                <i class="bi bi-shield-lock-fill me-1"></i> Panel de Organización
+            </span>
+            <h2 class="fw-black text-dark mb-0" style="letter-spacing: -0.5px;">Directorio Global</h2>
+            <p class="text-muted small mt-1 mb-0">Base de datos de todos los jugadores inscritos en los torneos.</p>
+        </div>
+        
+        <div class="w-100" style="max-width: 400px;">
+            <form method="get" class="m-0">
+                <div class="input-group shadow-sm rounded-pill overflow-hidden border">
+                    <span class="input-group-text bg-white border-0 pe-1 text-muted">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input class="form-control border-0 shadow-none bg-white" type="search" name="q" placeholder="Cédula, nombre o equipo..." value="{{ request.GET.q|default:'' }}">
+                    <button class="btn btn-dark fw-bold px-4 transition-all" type="submit" style="border-radius: 0 50px 50px 0;">Buscar</button>
+                </div>
+            </form>
+            {% if request.GET.q %}
+                <div class="text-end mt-2">
+                    <a href="{% url 'admin_gestion_jugadores' %}" class="text-danger small text-decoration-none fw-bold"><i class="bi bi-x-circle me-1"></i>Limpiar búsqueda</a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card card-pro border-0 shadow-sm overflow-hidden rounded-4 mb-5">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" style="white-space: nowrap;">
+                    <thead class="bg-light text-muted small text-uppercase" style="letter-spacing: 0.5px;">
+                        <tr>
+                            <th class="ps-4 py-3" style="width: 5%;">Dorsal</th>
+                            <th style="width: 30%;">Identificación y Nombre</th>
+                            <th>Club / Equipo</th>
+                            <th>Posición</th>
+                            <th class="text-end pe-4">Acciones Administrativas</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for j in jugadores %}
+                        <tr class="border-bottom transition-all" style="border-color: rgba(0,0,0,0.03) !important;">
+                            
+                            <td class="ps-4">
+                                <div class="bg-dark text-white fw-bold rounded-circle d-inline-flex align-items-center justify-content-center shadow-sm" style="width: 35px; height: 35px; font-size: 0.9rem;">
+                                    {{ j.dorsal }}
+                                </div>
+                            </td>
+
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    {% if j.foto %}
+                                        <img src="{{ j.foto.url }}" class="rounded-circle me-3 border border-2 border-white shadow-sm" width="50" height="50" style="object-fit: cover; background: #f8fafc;">
+                                    {% else %}
+                                        <div class="bg-light rounded-circle border border-2 border-white shadow-sm d-flex align-items-center justify-content-center me-3" style="width: 50px; height: 50px;">
+                                            <i class="bi bi-person-fill text-muted opacity-50 fs-4"></i>
+                                        </div>
+                                    {% endif %}
+                                    
+                                    <div>
+                                        <div class="fw-black text-dark fs-6">{{ j.nombres }}</div>
+                                        <div class="d-flex align-items-center gap-2 mt-1">
+                                            <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle" style="font-size: 0.65rem;">
+                                                <i class="bi bi-upc-scan me-1"></i> {{ j.cedula|default:"Sin Cédula" }}
+                                            </span>
+                                            {% if j.alias %}
+                                                <small class="text-muted fst-italic">"{{ j.alias }}"</small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+
+                            <td>
+                                <div class="d-inline-flex align-items-center bg-light border px-3 py-1 fw-bold shadow-sm rounded-pill text-dark" style="font-size: 0.85rem;">
+                                    {% if j.equipo.escudo %}
+                                        <img src="{{ j.equipo.escudo.url }}" style="height: 16px; margin-top: -2px; margin-right: 6px; border-radius: 50%;"> 
+                                    {% else %}
+                                        <i class="bi bi-shield-fill text-muted me-1"></i>
+                                    {% endif %}
+                                    <span class="text-truncate" style="max-width: 150px;">{{ j.equipo.nombre }}</span>
+                                </div>
+                            </td>
+
+                            <td>
+                                {% if j.posicion == 'POR' %}
+                                    <span class="badge bg-warning text-dark border border-warning shadow-sm"><i class="bi bi-hands me-1"></i> Portero</span>
+                                {% elif j.posicion == 'DEF' %}
+                                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary shadow-sm"><i class="bi bi-shield-shaded me-1"></i> Defensa</span>
+                                {% elif j.posicion == 'MED' %}
+                                    <span class="badge bg-success bg-opacity-10 text-success border border-success shadow-sm"><i class="bi bi-arrow-left-right me-1"></i> Medio</span>
+                                {% elif j.posicion == 'DEL' %}
+                                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger shadow-sm"><i class="bi bi-lightning-charge-fill me-1"></i> Delantero</span>
+                                {% else %}
+                                    <span class="text-muted small">No definida</span>
+                                {% endif %}
+                            </td>
+
+                            <td class="text-end pe-4">
+                                <div class="btn-group shadow-sm rounded-pill" role="group">
+                                    <a href="{% url 'editar_jugador' j.id %}" class="btn btn-light border text-primary" title="Editar Jugador">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </a>
+                                    <a href="{% url 'eliminar_jugador' j.id %}" class="btn btn-light border text-danger" title="Eliminar de la Base de Datos" onclick="return confirm('⚠️ ¿Estás seguro de eliminar a {{ j.nombres }} del sistema? Esta acción no se puede deshacer.');">
+                                        <i class="bi bi-trash3-fill"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center py-5">
+                                <div class="bg-light rounded-circle d-inline-flex justify-content-center align-items-center mb-3 shadow-inner border" style="width: 80px; height: 80px;">
+                                    <i class="bi bi-search text-muted opacity-50" style="font-size: 2.5rem;"></i>
+                                </div>
+                                <h5 class="fw-bold text-dark">Sin resultados</h5>
+                                <p class="text-muted small mb-0">No se encontraron jugadores con ese término de búsqueda o la base de datos está vacía.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Transiciones y Hover Premium */
+    .card-pro { transition: box-shadow 0.3s; }
+    .card-pro:hover { box-shadow: 0 10px 30px rgba(0,0,0,0.05) !important; }
+    
+    tbody tr:hover { background-color: #f8fafc !important; }
+    
+    /* Buscador animado */
+    input[type="search"]::-webkit-search-cancel-button { cursor: pointer; }
+    .input-group:focus-within { box-shadow: 0 0 0 4px rgba(15, 23, 42, 0.1) !important; border-color: var(--primary-dark) !important; }
+</style>
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends 'core/base.html' %}
+
+{% block contenido %}
+<div class="container animate__animated animate__fadeIn">
+    <div class="row justify-content-center">
+        
+        <div class="col-12 text-center mb-5 mt-4">
+            <h6 class="text-uppercase fw-bold ls-1 mb-2" style="color: var(--accent-green);">
+                <i class="bi bi-bar-chart-fill me-1"></i> Análisis Deportivo
+            </h6>
+            <h2 class="display-5 fw-bold mb-3" style="color: var(--primary-dark);">Centro de Estadísticas</h2>
+            <p class="text-muted fs-5">Selecciona un torneo para ver Goleadores, Sanciones y Fair Play</p>
+        </div>
+
+        {% for t in torneos %}
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card card-pro h-100 text-center">
+                <div class="card-body p-4 p-lg-5 d-flex flex-column justify-content-center">
+                    
+                    <div class="mb-4">
+                        <div class="rounded-circle d-inline-flex align-items-center justify-content-center shadow-sm" style="width: 80px; height: 80px; background-color: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.2);">
+                            <i class="bi bi-trophy-fill display-5 text-warning"></i>
+                        </div>
+                    </div>
+                    
+                    <h4 class="card-title fw-bold mb-3" style="color: var(--primary-dark);">{{ t.nombre }}</h4>
+                    <div class="mb-4">
+                        <span class="badge bg-light text-dark border px-3 py-2 shadow-sm rounded-pill">
+                            <i class="bi bi-calendar3 me-1 text-muted"></i> Inicio: {{ t.fecha_inicio|date:"d M Y" }}
+                        </span>
+                    </div>
+                    
+                    <div class="mt-auto">
+                        <a href="{% url 'reporte_estadisticas' t.id %}" class="btn btn-sport w-100 rounded-pill d-flex align-items-center justify-content-center py-2">
+                            VER REPORTE <i class="bi bi-arrow-right-circle-fill ms-2 fs-5 opacity-75"></i>
+                        </a>
+                    </div>
+                    
+                </div>
+            </div>
+        </div>
+        
+        {% empty %}
+        <div class="col-12 text-center py-5 my-5">
+            <div class="rounded-circle d-inline-flex align-items-center justify-content-center mb-4 shadow-sm" style="width: 110px; height: 110px; background-color: var(--bg-body); border: 1px solid rgba(0,0,0,0.05);">
+                <i class="bi bi-clipboard-x text-muted" style="font-size: 3rem; opacity: 0.5;"></i>
+            </div>
+            <h4 class="fw-bold" style="color: var(--primary-dark);">No hay torneos registrados</h4>
+            <p class="text-muted mb-4 fs-5">Aún no se ha creado ninguna competencia para analizar.</p>
+            <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary rounded-pill px-5 py-2 fw-bold">Volver al Inicio</a>
+        </div>
+        {% endfor %}
+        
+    </div>
+</div>
+{% endblock %}

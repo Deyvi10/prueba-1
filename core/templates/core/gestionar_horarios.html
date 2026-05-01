@@ -1,0 +1,101 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Horarios y Tarifas | Cancha El Chulo{% endblock %}
+
+{% block contenido %}
+<div class="row g-4">
+    <div class="col-lg-4">
+        <div class="card card-pro border-0 shadow-lg sticky-top" style="top: 100px;">
+            <div class="card-header bg-primary text-white border-0 pt-4 pb-3 px-4">
+                <div class="d-flex align-items-center">
+                    <div class="bg-white bg-opacity-25 rounded-3 p-2 me-3 shadow-sm">
+                        <i class="bi bi-clock-fill fs-4 text-white"></i>
+                    </div>
+                    <div>
+                        <h5 class="fw-bold text-white mb-0">Nuevo Horario</h5>
+                        <small class="text-white-50">Configura tus bloques y precios</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-body p-4">
+                <form method="post">
+                    {% csrf_token %}
+                    {% for field in form %}
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small fw-bold text-uppercase ls-1">{{ field.label }}</label>
+                        {% if field.field.widget.input_type == 'checkbox' %}
+                            <div class="form-check form-switch fs-5">
+                                {{ field }}
+                                <label class="form-check-label text-muted fs-6 ms-2">Disponible para reservas</label>
+                            </div>
+                        {% else %}
+                            {{ field }}
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                    <button type="submit" class="btn btn-sport w-100 py-2 fw-bold mt-3 shadow-sm">
+                        <i class="bi bi-plus-circle me-2"></i> Agregar Horario
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <h4 class="fw-bold text-dark mb-3"><i class="bi bi-list-check text-muted me-2"></i> Tarifario Actual</h4>
+        
+        <div class="row g-3">
+            {% for h in horarios %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card card-pro border-0 shadow-sm text-center position-relative overflow-hidden">
+                    <div class="position-absolute top-0 w-100" style="height: 4px; background: {% if h.activo %}var(--accent-green){% else %}#ef4444{% endif %};"></div>
+                    
+                    <div class="card-body p-4">
+                        <div class="display-6 fw-bold text-dark mb-1">
+                            ${{ h.precio }}
+                        </div>
+                        <div class="text-muted fw-bold mb-3">
+                            {{ h.hora_inicio|time:"H:i" }} - {{ h.hora_fin|time:"H:i" }}
+                        </div>
+                        
+                        {% if h.activo %}
+                            <span class="badge bg-success bg-opacity-10 text-success border mb-3"><i class="bi bi-check-circle-fill me-1"></i> Activo</span>
+                        {% else %}
+                            <span class="badge bg-danger bg-opacity-10 text-danger border mb-3"><i class="bi bi-x-circle-fill me-1"></i> Inactivo</span>
+                        {% endif %}
+                        
+                        <div class="mt-2">
+                            <a href="{% url 'eliminar_horario' h.id %}" class="btn btn-sm btn-outline-danger w-100 rounded-pill" onclick="return confirm('¿Seguro que deseas eliminar este horario?');">
+                                <i class="bi bi-trash"></i> Eliminar
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12 text-center py-5 bg-white rounded-4 border border-dashed">
+                <i class="bi bi-calendar-x text-muted opacity-25 display-1"></i>
+                <h5 class="text-secondary fw-bold mt-3">No hay horarios configurados</h5>
+                <p class="text-muted small">Crea bloques de horas para que tus clientes puedan reservar la cancha.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<style>
+    form input {
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        background-color: #f8fafc;
+        color: #334155;
+    }
+    form input:focus {
+        border-color: var(--accent-green);
+        background-color: #fff;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+    }
+</style>
+{% endblock %}

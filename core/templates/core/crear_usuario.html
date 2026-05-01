@@ -1,0 +1,42 @@
+{% extends 'core/base.html' %}
+
+{% block contenido %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow-lg border-0" style="background: #1e293b;">
+            <div class="card-header bg-transparent border-bottom border-secondary pt-4 pb-3 text-center">
+                <h2 class="text-neon-blue"><i class="bi bi-person-plus-fill"></i> NUEVO USUARIO</h2>
+                <small class="text-muted">Crear cuenta para Vocal o Dirigente</small>
+            </div>
+            
+            <div class="card-body p-4">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    {% for field in form %}
+                    <div class="mb-3">
+                        <label class="form-label text-neon-green fw-bold small text-uppercase">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.errors %}
+                            <div class="text-danger small mt-1">{{ field.errors }}</div>
+                        {% endif %}
+                        {% if field.help_text %}
+                            <small class="text-muted" style="font-size: 0.7rem;">{{ field.help_text }}</small>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+
+                    <div class="d-grid gap-2 mt-4">
+                        <button type="submit" class="btn btn-neon btn-lg">
+                            <i class="bi bi-save"></i> GUARDAR USUARIO
+                        </button>
+                        <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+                            CANCELAR
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,201 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Fase Final | {{ torneo.nombre }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    body { background-color: #f4f7fe; }
+    .bracket-card {
+        background: white;
+        border-radius: 16px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        overflow: hidden;
+        margin-bottom: 20px;
+    }
+    .bracket-header {
+        background: #0f172a;
+        color: white;
+        padding: 8px 15px;
+        font-weight: 800;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    .team-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 15px;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .team-row:last-child { border-bottom: none; }
+    .score-box {
+        font-weight: 900;
+        font-size: 1.2rem;
+        background: #f8fafc;
+        padding: 5px 15px;
+        border-radius: 8px;
+        color: #0f172a;
+    }
+    .winner { color: #10b981; }
+    .penalties { font-size: 0.7rem; color: #f59e0b; font-weight: bold; }
+    .shield-mini { width: 30px; height: 30px; object-fit: contain; margin-right: 10px; }
+</style>
+{% endblock %}
+
+{% block contenido %}
+<div class="container py-4 animate__animated animate__fadeInUp">
+    
+    <div class="text-center mb-5">
+        <a href="javascript:history.back()" class="btn btn-sm btn-light text-dark fw-bold border rounded-pill px-4 mb-3 shadow-sm">
+            <i class="bi bi-arrow-left me-1"></i> Volver al Inicio
+        </a>
+        <h2 class="fw-black text-dark mb-1">Fase Final (Eliminatorias)</h2>
+        <p class="text-muted fw-medium mb-2">{{ torneo.nombre }}</p>
+    </div>
+
+    {% if final or tercer %}
+    <div class="row justify-content-center mb-5">
+        {% if final %}
+        <div class="col-md-6 mb-4">
+            <div class="bracket-card" style="border: 2px solid #f59e0b;">
+                <div class="bracket-header bg-warning text-dark text-center"><i class="bi bi-trophy-fill me-2"></i>LA GRAN FINAL</div>
+                
+                <div class="team-row">
+                    <div class="d-flex align-items-center fw-bold text-dark">
+                        {% if final.equipo_local.escudo %}<img src="{{ final.equipo_local.escudo.url }}" class="shield-mini">{% else %}<i class="bi bi-shield-fill text-muted opacity-50 me-2 fs-4"></i>{% endif %}
+                        {{ final.equipo_local.nombre }}
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        {% if final.hubo_penales %}<span class="penalties">(P: {{ final.penales_local }})</span>{% endif %}
+                        <div class="score-box">{{ final.goles_local }}</div>
+                    </div>
+                </div>
+
+                <div class="team-row">
+                    <div class="d-flex align-items-center fw-bold text-dark">
+                        {% if final.equipo_visita.escudo %}<img src="{{ final.equipo_visita.escudo.url }}" class="shield-mini">{% else %}<i class="bi bi-shield-fill text-muted opacity-50 me-2 fs-4"></i>{% endif %}
+                        {{ final.equipo_visita.nombre }}
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        {% if final.hubo_penales %}<span class="penalties">(P: {{ final.penales_visita }})</span>{% endif %}
+                        <div class="score-box">{{ final.goles_visita }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if tercer %}
+        <div class="col-md-6 mb-4">
+            <div class="bracket-card" style="border: 2px solid #94a3b8;">
+                <div class="bracket-header bg-secondary text-white text-center">3ER Y 4TO PUESTO</div>
+                
+                <div class="team-row">
+                    <div class="d-flex align-items-center fw-bold text-dark">
+                        {% if tercer.equipo_local.escudo %}<img src="{{ tercer.equipo_local.escudo.url }}" class="shield-mini">{% else %}<i class="bi bi-shield-fill text-muted opacity-50 me-2 fs-4"></i>{% endif %}
+                        {{ tercer.equipo_local.nombre }}
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        {% if tercer.hubo_penales %}<span class="penalties">(P: {{ tercer.penales_local }})</span>{% endif %}
+                        <div class="score-box">{{ tercer.goles_local }}</div>
+                    </div>
+                </div>
+
+                <div class="team-row">
+                    <div class="d-flex align-items-center fw-bold text-dark">
+                        {% if tercer.equipo_visita.escudo %}<img src="{{ tercer.equipo_visita.escudo.url }}" class="shield-mini">{% else %}<i class="bi bi-shield-fill text-muted opacity-50 me-2 fs-4"></i>{% endif %}
+                        {{ tercer.equipo_visita.nombre }}
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        {% if tercer.hubo_penales %}<span class="penalties">(P: {{ tercer.penales_visita }})</span>{% endif %}
+                        <div class="score-box">{{ tercer.goles_visita }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-lg-6 mb-4">
+            <h5 class="fw-black text-dark mb-4 border-bottom pb-2"><i class="bi bi-diagram-3-fill text-primary me-2"></i>Cuartos de Final</h5>
+            {% if cuartos %}
+                {% for c in cuartos %}
+                <div class="bracket-card">
+                    <div class="bracket-header d-flex justify-content-between">
+                        <span>LLAVE {{ forloop.counter }}</span>
+                        {% if c.numero_fecha == 1 %}<span>IDA</span>{% else %}<span>VUELTA</span>{% endif %}
+                    </div>
+                    <div class="team-row">
+                        <div class="d-flex align-items-center fw-bold text-dark">
+                            {% if c.equipo_local.escudo %}<img src="{{ c.equipo_local.escudo.url }}" class="shield-mini">{% else %}<i class="bi bi-shield-fill text-muted opacity-50 me-2 fs-4"></i>{% endif %}
+                            {{ c.equipo_local.nombre }}
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            {% if c.hubo_penales %}<span class="penalties">(P: {{ c.penales_local }})</span>{% endif %}
+                            <div class="score-box {% if c.estado == 'PROG' %}text-muted{% endif %}">{% if c.estado == 'PROG' %}-{% else %}{{ c.goles_local }}{% endif %}</div>
+                        </div>
+                    </div>
+                    <div class="team-row">
+                        <div class="d-flex align-items-center fw-bold text-dark">
+                            {% if c.equipo_visita.escudo %}<img src="{{ c.equipo_visita.escudo.url }}" class="shield-mini">{% else %}<i class="bi bi-shield-fill text-muted opacity-50 me-2 fs-4"></i>{% endif %}
+                            {{ c.equipo_visita.nombre }}
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            {% if c.hubo_penales %}<span class="penalties">(P: {{ c.penales_visita }})</span>{% endif %}
+                            <div class="score-box {% if c.estado == 'PROG' %}text-muted{% endif %}">{% if c.estado == 'PROG' %}-{% else %}{{ c.goles_visita }}{% endif %}</div>
+                        </div>
+                    </div>
+                    <div class="bg-light text-center py-2 text-muted small fw-bold">
+                        {% if c.estado == 'JUG' %}FINALIZADO{% else %}{{ c.fecha_hora|date:"d M Y - H:i"|default:"Por programar" }}{% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="alert alert-light border border-dashed text-center text-muted">Aún no se han generado los Cuartos de Final.</div>
+            {% endif %}
+        </div>
+
+        <div class="col-lg-6 mb-4">
+            <h5 class="fw-black text-dark mb-4 border-bottom pb-2"><i class="bi bi-diagram-2-fill text-danger me-2"></i>Semifinales</h5>
+            {% if semis %}
+                {% for s in semis %}
+                <div class="bracket-card">
+                    <div class="bracket-header bg-danger text-white d-flex justify-content-between">
+                        <span>SEMI {{ forloop.counter }}</span>
+                        <span>PARTIDO ÚNICO</span>
+                    </div>
+                    <div class="team-row">
+                        <div class="d-flex align-items-center fw-bold text-dark">
+                            {% if s.equipo_local.escudo %}<img src="{{ s.equipo_local.escudo.url }}" class="shield-mini">{% else %}<i class="bi bi-shield-fill text-muted opacity-50 me-2 fs-4"></i>{% endif %}
+                            {{ s.equipo_local.nombre }}
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            {% if s.hubo_penales %}<span class="penalties">(P: {{ s.penales_local }})</span>{% endif %}
+                            <div class="score-box {% if s.estado == 'PROG' %}text-muted{% endif %}">{% if s.estado == 'PROG' %}-{% else %}{{ s.goles_local }}{% endif %}</div>
+                        </div>
+                    </div>
+                    <div class="team-row">
+                        <div class="d-flex align-items-center fw-bold text-dark">
+                            {% if s.equipo_visita.escudo %}<img src="{{ s.equipo_visita.escudo.url }}" class="shield-mini">{% else %}<i class="bi bi-shield-fill text-muted opacity-50 me-2 fs-4"></i>{% endif %}
+                            {{ s.equipo_visita.nombre }}
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            {% if s.hubo_penales %}<span class="penalties">(P: {{ s.penales_visita }})</span>{% endif %}
+                            <div class="score-box {% if s.estado == 'PROG' %}text-muted{% endif %}">{% if s.estado == 'PROG' %}-{% else %}{{ s.goles_visita }}{% endif %}</div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="alert alert-light border border-dashed text-center text-muted">Aún no se han generado las Semifinales.</div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}

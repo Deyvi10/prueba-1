@@ -1,0 +1,94 @@
+{% extends 'core/base.html' %}
+
+{% block contenido %}
+<div class="row justify-content-center animate__animated animate__fadeInUp">
+    <div class="col-md-8 col-lg-6">
+        
+        <div class="card border-0 shadow-lg overflow-hidden">
+            <div class="card-header bg-primary-dark text-white p-4 text-center" style="background: #1e293b;">
+                <h5 class="mb-1 text-white-50 text-uppercase small ls-1">Formulario de Registro</h5>
+                <h3 class="fw-bold text-white mb-0">Inscribir en {{ torneo.nombre }}</h3>
+            </div>
+            
+            <div class="card-body p-4 p-md-5">
+                
+                {% if form.errors %}
+                    <div class="alert alert-danger border-0 mb-4 shadow-sm">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="bi bi-exclamation-triangle-fill fs-4 me-2"></i>
+                            <h5 class="fw-bold m-0">Corrige los siguientes errores:</h5>
+                        </div>
+                        <ul class="mb-0 ps-3 small">
+                            {% for field in form %}
+                                {% for error in field.errors %}
+                                    <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                            {% for error in form.non_field_errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+
+                <div class="alert alert-info border-0 d-flex align-items-center mb-4">
+                    <i class="bi bi-info-circle-fill fs-4 me-3"></i>
+                    <div>
+                        <strong>Nota Importante:</strong>
+                        <p class="mb-0 small">Tu solicitud quedará en estado <strong>Pendiente</strong> hasta que el Organizador la apruebe.</p>
+                    </div>
+                </div>
+
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-muted small">NOMBRE DEL EQUIPO <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-end-0"><i class="bi bi-shield-fill"></i></span>
+                            {{ form.nombre }} 
+                        </div>
+                        {% if form.nombre.errors %}
+                            <div class="text-danger small mt-1">{{ form.nombre.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-muted small">LOGO / ESCUDO (OPCIONAL)</label>
+                        {{ form.escudo }}
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-6">
+                            <label class="form-label fw-bold text-muted small">SUPLENTE 1</label>
+                            {{ form.nombre_suplente_1 }}
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold text-muted small">SUPLENTE 2</label>
+                            {{ form.nombre_suplente_2 }}
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-success btn-lg fw-bold shadow-sm">
+                            ENVIAR SOLICITUD <i class="bi bi-send-fill ms-2"></i>
+                        </button>
+                        <a href="{% url 'ver_torneos_activos' %}" class="btn btn-light text-muted">Cancelar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Aplicar estilos de Bootstrap a los inputs de Django automáticamente
+    document.addEventListener("DOMContentLoaded", function() {
+        const inputs = document.querySelectorAll('input[type="text"], input[type="file"]');
+        inputs.forEach(input => {
+            input.classList.add('form-control');
+            if(input.name === 'nombre') input.classList.add('bg-light');
+        });
+    });
+</script>
+{% endblock %}

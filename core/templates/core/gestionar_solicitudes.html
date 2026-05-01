@@ -1,0 +1,56 @@
+{% extends 'core/base.html' %}
+
+{% block contenido %}
+<div class="container animate__animated animate__fadeIn">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h6 class="text-uppercase text-muted fw-bold ls-1">Administración</h6>
+            <h2 class="display-6 fw-bold text-primary-dark">Solicitudes de Inscripción</h2>
+        </div>
+        <span class="badge bg-primary rounded-pill px-3 py-2">{{ solicitudes.count }} Pendientes</span>
+    </div>
+
+    {% if solicitudes %}
+        <div class="row g-3">
+            {% for equipo in solicitudes %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body text-center p-4">
+                        {% if equipo.escudo %}
+                            <img src="{{ equipo.escudo.url }}" class="rounded-circle mb-3 border shadow-sm" width="80" height="80" style="object-fit: cover;">
+                        {% else %}
+                            <div class="rounded-circle bg-light d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 80px; height: 80px;">
+                                <i class="bi bi-shield-shaded fs-1 text-muted"></i>
+                            </div>
+                        {% endif %}
+                        
+                        <h4 class="fw-bold text-dark">{{ equipo.nombre }}</h4>
+                        <p class="text-muted small mb-2">Dirigente: <strong>{{ equipo.dirigente.first_name }} {{ equipo.dirigente.last_name }}</strong></p>
+                        <span class="badge bg-info text-dark mb-4">{{ equipo.torneo.nombre }}</span>
+
+                        <div class="d-grid gap-2">
+                            <form method="post">
+                                {% csrf_token %}
+                                <input type="hidden" name="equipo_id" value="{{ equipo.id }}">
+                                <button type="submit" name="accion" value="APROBAR" class="btn btn-success w-100 fw-bold">
+                                    <i class="bi bi-check-circle me-2"></i>APROBAR
+                                </button>
+                                <button type="submit" name="accion" value="RECHAZAR" class="btn btn-outline-danger w-100 btn-sm mt-2">
+                                    Rechazar
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-light text-center border py-5">
+            <i class="bi bi-check-all display-1 text-success opacity-50"></i>
+            <h4 class="mt-3 text-muted">¡Todo al día!</h4>
+            <p>No tienes solicitudes pendientes de revisión.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

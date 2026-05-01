@@ -1,0 +1,278 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Equipos | Cancha El Chulo{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ==========================================
+       ESTILOS PREMIUM - GESTIÓN EQUIPOS
+       ========================================== */
+    :root {
+        --clean-bg: #f4f7fe;
+        --clean-surface: #ffffff;
+        --clean-border: #e2e8f0;
+        --text-main: #1e293b;
+        --accent-blue: #0ea5e9;
+        --accent-green: #10b981;
+        --dark-panel: #0f172a;
+    }
+
+    body { background-color: var(--clean-bg); }
+
+    /* Tarjetas Generales */
+    .card-pro {
+        border: 0; border-radius: 16px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        background: var(--clean-surface);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        overflow: hidden;
+    }
+    .card-pro:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.06);
+    }
+
+    /* Panel Formulario */
+    .form-panel { border-top: 5px solid var(--dark-panel); }
+    .form-panel.edit-mode { border-top-color: var(--accent-blue); }
+
+    /* Inputs Limpios */
+    .clean-input {
+        width: 100%; padding: 0.5rem 0.8rem;
+        border: 1px solid var(--clean-border);
+        border-radius: 10px; background-color: #f8fafc;
+        color: var(--text-main); font-weight: 500; font-size: 0.85rem;
+        transition: all 0.2s ease;
+    }
+    .clean-input:focus {
+        border-color: var(--accent-blue); background-color: #fff;
+        outline: none; box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15);
+    }
+    
+    .form-label-pro { font-size: 0.7rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.3rem; }
+
+    /* Switches */
+    .form-switch .form-check-input {
+        width: 2.5rem; height: 1.2rem; cursor: pointer;
+        background-color: #cbd5e1; border-color: #cbd5e1;
+    }
+    .form-switch .form-check-input:checked {
+        background-color: var(--accent-green); border-color: var(--accent-green);
+    }
+
+    /* Botones de acción circular */
+    .btn-circle-action {
+        width: 30px; height: 30px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        border: none; transition: all 0.2s; text-decoration: none;
+    }
+    .btn-circle-action:hover { transform: scale(1.15); filter: brightness(0.9); }
+    .btn-edit { background: #f1f5f9; color: #475569; }
+    .btn-delete { background: #fee2e2; color: #b91c1c; }
+
+    /* Escudos Compactos */
+    .team-shield {
+        width: 50px; height: 50px; border-radius: 50%; object-fit: cover;
+        border: 2px solid #fff; box-shadow: 0 3px 8px rgba(0,0,0,0.08); background: #f8fafc;
+    }
+    .team-shield-icon {
+        width: 50px; height: 50px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        border: 2px solid #fff; box-shadow: 0 3px 8px rgba(0,0,0,0.08);
+        background: #f8fafc; color: #cbd5e1; font-size: 1.5rem;
+    }
+
+    /* Ocultar secciones vacías */
+    .pending-grid:empty, .pending-grid:empty + *, .pending-section:has(.pending-grid:empty) { display: none !important; }
+    .rejected-grid:has(.row:empty) { display: none !important; }
+
+    /* Efecto Rechazados */
+    .grayscale-effect { filter: grayscale(100%); transition: filter 0.3s; opacity: 0.8; }
+    .grayscale-effect:hover { filter: grayscale(0%); opacity: 1; }
+
+    @media (max-width: 768px) {
+        .sticky-top { position: static !important; }
+        .card-body { padding: 1rem !important; }
+    }
+</style>
+{% endblock %}
+
+{% block contenido %}
+<div class="row g-4 animate__animated animate__fadeIn">
+    
+    <div class="col-lg-4">
+        <div class="card card-pro form-panel shadow-sm sticky-top {% if editando %}edit-mode{% endif %}" style="top: 90px; z-index: 10;">
+            
+            <div class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center">
+                <div class="rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 35px; height: 35px; background: {% if editando %}#e0f2fe; color: #0284c7;{% else %}#f1f5f9; color: var(--dark-panel);{% endif %}">
+                    <i class="bi {% if editando %}bi-pencil-fill{% else %}bi-shield-plus{% endif %}"></i>
+                </div>
+                <div>
+                    <h6 class="fw-black text-dark mb-0">{% if editando %}Editar Equipo{% else %}Nuevo Equipo{% endif %}</h6>
+                    <small class="text-muted" style="font-size: 0.7rem;">Registro Administrativo</small>
+                </div>
+            </div>
+
+            <div class="card-body p-4 bg-white">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <div class="row g-3">
+                        {% for field in form %}
+                            {% if field.field.widget.input_type == 'checkbox' %}
+                                <div class="col-12 mt-2">
+                                    <div class="form-check form-switch bg-light border rounded-3 p-2 px-3 d-flex justify-content-between align-items-center mb-0">
+                                        <label class="form-check-label fw-bold text-dark m-0" for="{{ field.id_for_label }}" style="font-size: 0.75rem;">{{ field.label }}</label>
+                                        <div class="ms-3">{{ field }}</div>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="col-12">
+                                    <label class="form-label-pro">{{ field.label }}</label>
+                                    {{ field }}
+                                    {% if field.errors %}<div class="text-danger mt-1 fw-bold" style="font-size: 0.65rem;"><i class="bi bi-exclamation-circle me-1"></i>{{ field.errors.0 }}</div>{% endif %}
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+
+                    {% if not editando %}
+                    <div class="alert alert-light border border-dashed d-flex align-items-start p-2 rounded-3 mt-3 mb-0 text-muted" style="font-size: 0.7rem;">
+                        <i class="bi bi-info-circle-fill text-primary me-2 mt-1"></i>
+                        <div>En "Dirigentes" solo aparecen usuarios con rol <span class="badge bg-secondary" style="font-size: 0.6rem;">DIR</span>.</div>
+                    </div>
+                    {% endif %}
+
+                    <div class="d-grid gap-2 mt-4 pt-2 border-top">
+                        <button type="submit" class="btn {% if editando %}btn-primary{% else %}btn-dark{% endif %} py-2 fw-black shadow-sm rounded-pill" style="font-size: 0.85rem;">
+                            <i class="bi {% if editando %}bi-save{% else %}bi-check-circle-fill{% endif %} me-1"></i> {% if editando %}Actualizar Datos{% else %}Guardar Equipo{% endif %}
+                        </button>
+                        {% if editando %}
+                            <a href="{% url 'gestionar_equipos' %}" class="btn btn-light border py-1 text-muted fw-bold rounded-pill" style="font-size: 0.8rem;">Cancelar</a>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        
+        <div class="d-flex justify-content-between align-items-center mb-3 px-1">
+            <h5 class="fw-black text-dark mb-0"><i class="bi bi-shield-shaded text-success me-2"></i>Directorio de Equipos</h5>
+            <span class="badge bg-dark rounded-pill shadow-sm">{{ equipos|length }}</span>
+        </div>
+
+        {% if not equipos %}
+            <div class="text-center py-5 rounded-4 border border-dashed bg-white mt-2">
+                <i class="bi bi-shield-slash text-muted opacity-25" style="font-size: 3rem;"></i>
+                <h6 class="text-secondary fw-bold mt-3">Sin equipos registrados</h6>
+                <p class="text-muted small mb-0">Utiliza el formulario para inscribir al primero.</p>
+            </div>
+        {% else %}
+
+            <div class="pending-section mb-4">
+                <div class="d-flex justify-content-between align-items-end mb-2 px-1">
+                    <h6 class="fw-bold text-muted m-0" style="font-size: 0.8rem;"><i class="bi bi-clock-history text-warning me-1"></i>Pendientes de Aprobación</h6>
+                    <a href="{% url 'gestionar_solicitudes' %}" class="btn btn-sm btn-outline-warning fw-bold rounded-pill py-0 px-2" style="font-size: 0.7rem;">Revisar Solicitudes <i class="bi bi-arrow-right"></i></a>
+                </div>
+                <div class="row g-2 pending-grid">
+                    {% for equipo in equipos %}
+                        {% if equipo.estado_inscripcion == 'PENDIENTE' %}
+                        <div class="col-md-6">
+                            <div class="card card-pro border-0 border-start border-warning border-4 shadow-sm bg-white">
+                                <div class="card-body p-2 d-flex align-items-center gap-2">
+                                    {% if equipo.escudo %}<img src="{{ equipo.escudo.url }}" class="team-shield" style="width: 40px; height: 40px;">
+                                    {% else %}<div class="team-shield-icon" style="width: 40px; height: 40px; font-size: 1rem;"><i class="bi bi-shield-fill"></i></div>{% endif %}
+                                    <div class="flex-grow-1" style="min-width: 0;">
+                                        <h6 class="fw-bold text-dark mb-0 text-truncate" style="font-size: 0.85rem;" title="{{ equipo.nombre }}">{{ equipo.nombre }}</h6>
+                                        <div class="text-muted text-truncate" style="font-size: 0.65rem;"><i class="bi bi-person-fill"></i> {{ equipo.dirigente.first_name }}</div>
+                                    </div>
+                                    <span class="badge bg-warning bg-opacity-10 text-warning border border-warning" style="font-size: 0.6rem;">REVISIÓN</span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <h6 class="fw-bold text-muted mb-2 px-1" style="font-size: 0.8rem;"><i class="bi bi-check-circle-fill text-success me-1"></i>Equipos Oficiales</h6>
+                <div class="row g-3">
+                    {% for equipo in equipos %}
+                        {% if equipo.estado_inscripcion == 'APROBADO' %}
+                        <div class="col-md-6">
+                            <div class="card card-pro border-0 shadow-sm h-100">
+                                <div class="bg-light border-bottom d-flex justify-content-between align-items-center py-2 px-3">
+                                    <span class="badge bg-dark bg-opacity-10 text-dark fw-bold text-truncate" style="font-size: 0.65rem; max-width: 70%;">
+                                        <i class="bi bi-trophy-fill text-warning me-1"></i> {{ equipo.torneo.nombre }}
+                                    </span>
+                                    <div class="d-flex gap-1">
+                                        <a href="{% url 'editar_equipo' equipo.id %}" class="btn-circle-action btn-edit shadow-sm"><i class="bi bi-pencil-fill" style="font-size: 0.7rem;"></i></a>
+                                        <a href="{% url 'eliminar_equipo' equipo.id %}" class="btn-circle-action btn-delete shadow-sm" onclick="return confirm('⚠️ ¿Eliminar a {{ equipo.nombre }}?\nBorrará jugadores y estadísticas.');"><i class="bi bi-trash3-fill" style="font-size: 0.75rem;"></i></a>
+                                    </div>
+                                </div>
+
+                                <div class="card-body p-3 d-flex align-items-center gap-3">
+                                    {% if equipo.escudo %}<img src="{{ equipo.escudo.url }}" class="team-shield">
+                                    {% else %}<div class="team-shield-icon"><i class="bi bi-shield-fill"></i></div>{% endif %}
+                                    
+                                    <div class="flex-grow-1" style="min-width: 0;">
+                                        <h6 class="fw-black text-dark mb-1 text-truncate" title="{{ equipo.nombre }}">{{ equipo.nombre }}</h6>
+                                        <div class="text-secondary mb-1 text-truncate" style="font-size: 0.7rem;"><i class="bi bi-person-badge text-primary me-1"></i>DT: {{ equipo.dirigente.first_name }}</div>
+                                        <div>
+                                            {% if equipo.puede_fichar %}
+                                                <span class="badge bg-success bg-opacity-10 text-success border border-success" style="font-size: 0.6rem;"><i class="bi bi-unlock-fill me-1"></i> Fichajes Abiertos</span>
+                                            {% else %}
+                                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger" style="font-size: 0.6rem;"><i class="bi bi-lock-fill me-1"></i> Fichajes Cerrados</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="rejected-grid">
+                <h6 class="fw-bold text-muted mb-2 px-1" style="font-size: 0.8rem;"><i class="bi bi-x-octagon-fill text-danger me-1"></i>Cancelados / Rechazados</h6>
+                <div class="row g-2">
+                    {% for equipo in equipos %}
+                        {% if equipo.estado_inscripcion == 'RECHAZADO' %}
+                        <div class="col-md-6">
+                            <div class="card bg-white border shadow-sm grayscale-effect d-flex flex-row align-items-center p-2 rounded-3">
+                                {% if equipo.escudo %}<img src="{{ equipo.escudo.url }}" class="rounded-circle ms-1" style="width: 35px; height: 35px; object-fit: cover;">
+                                {% else %}<i class="bi bi-shield-fill fs-4 ms-2 text-muted"></i>{% endif %}
+                                <div class="ms-2 flex-grow-1" style="min-width: 0;">
+                                    <div class="fw-bold text-secondary text-truncate" style="font-size: 0.8rem;">{{ equipo.nombre }}</div>
+                                    <div class="text-muted" style="font-size: 0.65rem;">Inscripción denegada</div>
+                                </div>
+                                <a href="{% url 'eliminar_equipo' equipo.id %}" class="btn btn-sm text-danger p-1 me-1" title="Eliminar definitivamente" onclick="return confirm('¿Borrar del historial?');">
+                                    <i class="bi bi-x-lg"></i>
+                                </a>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+
+        {% endif %} 
+    </div>
+</div>
+
+<script>
+    // Aplicar estilos limpios a inputs de Django
+    document.addEventListener("DOMContentLoaded", function() {
+        const inputs = document.querySelectorAll('form input[type="text"], form input[type="number"], form input[type="file"], form select, form textarea');
+        inputs.forEach(input => {
+            if (!input.classList.contains('form-check-input')) {
+                input.classList.add('clean-input');
+            }
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends 'core/base.html' %}
+
+{% block contenido %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>🗓️ Vista Previa del Fixture: <span class="text-primary">{{ torneo.nombre }}</span></h2>
+        <a href="{% url 'programar_partidos' %}?torneo={{ torneo.id }}" class="btn btn-secondary">Volver al Calendario</a>
+    </div>
+
+    <div class="alert alert-info">
+        <strong>¡Atención!</strong> Se han generado las fechas para <b>{{ total_equipos }}</b> equipos inscritos mediante el sistema "Todos contra Todos". Revisa las fechas abajo antes de guardarlas.
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body bg-light text-center">
+            <h5 class="mb-3">¿Qué deseas hacer con este Fixture?</h5>
+            <form method="POST" class="d-inline-flex gap-3">
+                {% csrf_token %}
+                <button type="submit" name="accion" value="descargar_pdf" class="btn btn-danger btn-lg">
+                    📄 Descargar PDF
+                </button>
+                <button type="submit" name="accion" value="guardar_db" class="btn btn-success btn-lg" onclick="return confirm('¿Seguro que quieres agregar estos partidos al calendario del sistema?');">
+                    💾 Guardar Partidos en el Sistema
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="row">
+        {% for jornada in fixture %}
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-dark text-white text-center">
+                    <h5 class="mb-0">Fecha {{ jornada.numero_fecha }}</h5>
+                </div>
+                <ul class="list-group list-group-flush">
+                    {% for partido in jornada.partidos %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span class="fw-bold w-50 text-end">
+                                {% if partido.local %}{{ partido.local.nombre }}{% else %}<span class="text-muted fst-italic">DESCANSO</span>{% endif %}
+                            </span>
+                            <span class="mx-3 text-muted">vs</span>
+                            <span class="fw-bold w-50 text-start">
+                                {% if partido.visita %}{{ partido.visita.nombre }}{% else %}<span class="text-muted fst-italic">DESCANSO</span>{% endif %}
+                            </span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
