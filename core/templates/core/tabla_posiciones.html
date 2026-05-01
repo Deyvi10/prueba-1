@@ -1,144 +1,277 @@
 {% extends 'core/base.html' %}
+{% load static %}
 
 {% block title %}Tabla de Posiciones | Cancha El Chulo{% endblock %}
 
-{% block contenido %}
-<div class="container-fluid px-0 animate__animated animate__fadeInUp">
+{% block extra_css %}
+<style>
+    /* --- DISEÑO PRO CLARO Y LIMPIO --- */
+    :root {
+        --clean-bg: #f3f4f6;
+        --clean-surface: #ffffff;
+        --clean-border: #e5e7eb;
+        --text-main: #1f2937;
+        --accent-blue: #0ea5e9;
+    }
+    body { background-color: var(--clean-bg); color: var(--text-main); }
     
-    <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between mb-4 pb-3 border-bottom">
+    .nav-tabs { border-bottom: 2px solid var(--clean-border); }
+    .nav-tabs .nav-link { 
+        font-weight: 800; color: #6b7280; border: none; border-bottom: 3px solid transparent; 
+        padding: 12px 20px; font-size: 0.9rem;
+    }
+    .nav-tabs .nav-link:hover { color: var(--accent-blue); border-color: transparent; }
+    .nav-tabs .nav-link.active { 
+        color: var(--accent-blue); background: transparent; border-bottom: 3px solid var(--accent-blue); 
+    }
+    
+    .clean-table { margin-bottom: 0; }
+    .clean-table th { 
+        background-color: #f9fafb; color: #374151; font-weight: 800; text-transform: uppercase; 
+        font-size: 0.75rem; letter-spacing: 0.5px; padding: 15px 8px; border-bottom: 2px solid var(--clean-border);
+    }
+    .clean-table td { vertical-align: middle; font-weight: 600; color: #1f2937; padding: 12px 8px; border-bottom: 1px solid var(--clean-border); }
+    
+    .bonus-badge { 
+        background-color: #fffbeb; color: #d97706; border: 1px solid #fde68a; 
+        font-size: 0.7rem; padding: 3px 8px; border-radius: 20px; font-weight: 900;
+        box-shadow: 0 2px 4px rgba(217, 119, 6, 0.1); margin-left: 8px;
+    }
+
+    .cursor-help { cursor: help; }
+    tbody tr:hover { background-color: #f8fafc !important; }
+</style>
+{% endblock %}
+
+{% block contenido %}
+<div class="container-fluid px-0 py-3 animate__animated animate__fadeInUp">
+    
+    <!-- HEADER -->
+    <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between mb-4 pb-3 border-bottom border-secondary border-opacity-25">
         <div>
             <h3 class="fw-black text-dark mb-0" style="letter-spacing: -0.5px;">
-                <i class="bi bi-table text-primary me-2"></i>Tabla de Posiciones
+                <i class="bi bi-table text-primary me-2"></i>Tabla de Posiciones - Fase 1
             </h3>
-            <p class="text-muted small mb-0 mt-1">Clasificación oficial de la Fase 1. El orden se define por Puntos, luego Gol Diferencia.</p>
+            <p class="text-muted small mb-0 mt-1">El orden se define por Puntos, luego Gol Diferencia.</p>
         </div>
         
         <div class="mt-3 mt-md-0 d-flex gap-2">
-            <span class="badge bg-light text-dark border px-3 py-2 rounded-pill shadow-sm fs-6">
+            <span class="badge bg-white text-dark border px-3 py-2 rounded-pill shadow-sm fs-6">
                 <i class="bi bi-trophy-fill text-warning me-1"></i> {{ torneo.nombre }}
             </span>
         </div>
     </div>
 
-    {% if request.user.perfil.rol == 'ORG' and not fase2_ya_generada %}
-    <div class="card bg-dark border-secondary p-3 mb-4 shadow-sm text-center rounded-4">
-        <h6 class="text-white mb-3 fw-bold"><i class="bi bi-gear-fill text-warning me-2"></i>Configurar Fase 2 (Grupos)</h6>
-        <form action="{% url 'generar_fase2' torneo.id %}" method="post" class="d-flex flex-column flex-md-row justify-content-center align-items-center gap-4 m-0">
-            {% csrf_token %}
+    <!-- CONTROLES DEL ORGANIZADOR -->
+    {% if request.user.perfil.rol == 'ORG' %}
+    <div class="card bg-white border-0 shadow-sm p-4 mb-4 rounded-4">
+        <h6 class="text-dark mb-3 fw-bold"><i class="bi bi-gear-fill text-primary me-2"></i>Controles del Torneo (Organizador)</h6>
+        <div class="d-flex flex-column flex-md-row gap-4 align-items-center">
             
-            <div class="form-check form-switch fs-5">
-                <input class="form-check-input bg-secondary border-secondary" type="checkbox" name="ida_y_vuelta" id="ida_vuelta_f2" style="cursor: pointer;">
-                <label class="form-check-label fw-bold text-white ms-2" for="ida_vuelta_f2" style="cursor: pointer;">¿Jugar Ida y Vuelta?</label>
+
+
+            <div class="vr d-none d-md-block"></div>
+
+            <!-- BOTÓN 2: GENERAR GRUPOS FASE 2 -->
+            {% if not fase2_ya_generada %}
+            <form action="{% url 'generar_fase2' torneo.id %}" method="post" class="m-0 w-100 w-md-auto d-flex flex-column flex-md-row align-items-center gap-3">
+                {% csrf_token %}
+                <div class="form-check form-switch fs-6 mb-2 mb-md-0">
+                    <input class="form-check-input bg-secondary border-secondary" type="checkbox" name="ida_y_vuelta" id="ida_vuelta_f2" style="cursor: pointer;">
+                    <label class="form-check-label fw-bold text-dark ms-2" for="ida_vuelta_f2" style="cursor: pointer;">¿Grupos Ida y Vuelta?</label>
+                </div>
+                <button type="submit" class="btn btn-dark fw-black px-4 py-2 rounded-pill shadow-sm w-100 w-md-auto" onclick="return confirm('¿Seguro que deseas pasar a la Fase 2?\n\nEsto dividirá a los equipos en Grupo A y B de forma definitiva.');">
+                    <i class="bi bi-diagram-2-fill me-1"></i> Generar Grupos (Fase 2)
+                </button>
+            </form>
+            
+            {% else %}
+            <!-- AQUI AGREGAMOS EL BOTÓN DE REVERSO PARA LA FASE 2 -->
+            <div class="d-flex align-items-center gap-2 w-100 w-md-auto">
+                <span class="badge bg-success bg-opacity-10 text-success border border-success px-3 py-2 rounded-pill text-center flex-grow-1">
+                    <i class="bi bi-check-circle-fill me-1"></i> Fase 2 Generada
+                </span>
+                <form action="{% url 'revertir_fase2' torneo.id %}" method="post" class="m-0">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-danger rounded-pill fw-bold py-1 px-3" onclick="return confirm('⚠️ ADVERTENCIA CRÍTICA ⚠️\n\n¿Estás seguro de deshacer los Grupos de la Fase 2?\n\nEsto borrará todos los partidos programados del Grupo A y Grupo B.');" title="Deshacer Grupos Fase 2">
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                    </button>
+                </form>
             </div>
-            
-            <button type="submit" class="btn btn-warning fw-black px-4 rounded-pill shadow-sm" onclick="return confirm('¿Seguro que deseas dividir a los equipos en Grupo A y B? Esto otorgará las bonificaciones a los primeros lugares.');">
-                <i class="bi bi-diagram-2-fill me-1"></i> Generar Grupos F2
-            </button>
-        </form>
-    </div>
-    {% elif request.user.perfil.rol == 'ORG' and fase2_ya_generada %}
-    <div class="alert alert-success border-0 shadow-sm rounded-4 mb-4 fw-bold text-center">
-        <i class="bi bi-check-circle-fill me-2"></i> La Fase 2 ya ha sido generada para este torneo.
+            {% endif %}
+
+            <!-- BOTÓN 1: INICIAR O DESHACER SEGUNDA VUELTA -->
+            {% if not existe_vuelta2 %}
+            <form action="{% url 'generar_vuelta2_f1' torneo.id %}" method="post" class="m-0 w-100 w-md-auto">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-primary fw-bold w-100 rounded-pill shadow-sm py-2" onclick="return confirm('¿Iniciar la Segunda Vuelta?\n\nSe premiará con 2pts al primero y 1pt al segundo lugar actual, y se crearán los partidos de revancha automáticamente.');">
+                    <i class="bi bi-arrow-repeat me-1"></i> Iniciar 2da Vuelta (Dar Bonos)
+                </button>
+            </form>
+            {% else %}
+            <div class="d-flex align-items-center gap-2 w-100 w-md-auto">
+                <span class="badge bg-success bg-opacity-10 text-success border border-success px-3 py-2 rounded-pill text-center flex-grow-1">
+                    <i class="bi bi-check-circle-fill me-1"></i> 2da Vuelta Activa
+                </span>
+                
+                <!-- 🚨 BOTÓN DE PÁNICO (REVERSO) 🚨 -->
+                <form action="{% url 'revertir_vuelta2_f1' torneo.id %}" method="post" class="m-0">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-danger rounded-pill fw-bold py-1 px-3" onclick="return confirm('⚠️ ADVERTENCIA CRÍTICA ⚠️\n\n¿Estás seguro de deshacer la Segunda Vuelta?\n\nEsto borrará todos los partidos de revancha programados y le quitará los puntos de bonificación a los equipos.');" title="Deshacer Segunda Vuelta">
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+
+        </div>
     </div>
     {% endif %}
 
-    <div class="card card-pro border-0 shadow-sm overflow-hidden mb-5 rounded-4">
+
+    <!-- TABLAS DE POSICIONES CON PESTAÑAS -->
+    <div class="card card-pro border-0 shadow-sm overflow-hidden mb-5 rounded-4 bg-white">
+        
+        <div class="card-header bg-white p-0 border-0">
+            <ul class="nav nav-tabs px-3 pt-2" id="tabPosiciones" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="general-tab" data-bs-toggle="tab" data-bs-target="#general" type="button" role="tab">TABLA GENERAL ACUMULADA</button>
+                </li>
+                {% if existe_vuelta2 %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="vuelta2-tab" data-bs-toggle="tab" data-bs-target="#vuelta2" type="button" role="tab">RENDIMIENTO 2DA VUELTA</button>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+
         <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0 text-center" style="white-space: nowrap;">
-                    <thead class="bg-light text-muted small text-uppercase" style="letter-spacing: 0.5px;">
-                        <tr>
-                            <th class="ps-4 text-start py-3" style="width: 5%;">#</th>
-                            <th class="text-start" style="width: 30%;">Equipo</th>
-                            
-                            <th data-bs-toggle="tooltip" data-bs-placement="top" title="Partidos Jugados" class="cursor-help">PJ</th>
-                            <th data-bs-toggle="tooltip" data-bs-placement="top" title="Partidos Ganados" class="cursor-help">PG</th>
-                            <th data-bs-toggle="tooltip" data-bs-placement="top" title="Partidos Empatados" class="cursor-help">PE</th>
-                            <th data-bs-toggle="tooltip" data-bs-placement="top" title="Partidos Perdidos" class="cursor-help">PP</th>
-                            
-                            <th data-bs-toggle="tooltip" data-bs-placement="top" title="Goles a Favor" class="d-none d-md-table-cell cursor-help">GF</th>
-                            <th data-bs-toggle="tooltip" data-bs-placement="top" title="Goles en Contra" class="d-none d-md-table-cell cursor-help">GC</th>
-                            
-                            <th data-bs-toggle="tooltip" data-bs-placement="top" title="Gol Diferencia (GF - GC)" class="cursor-help">GD</th>
-                            <th data-bs-toggle="tooltip" data-bs-placement="top" title="Puntos Totales" class="pe-4 fs-6 text-dark cursor-help">PTS</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for fila in tabla %}
-                        <tr class="border-bottom transition-all" style="border-color: rgba(0,0,0,0.03) !important;">
-                            
-                            <td class="ps-4 text-start py-3">
-                                {% if forloop.counter == 1 %}
-                                    <span class="badge bg-warning text-dark rounded-circle d-inline-flex align-items-center justify-content-center shadow-sm" style="width: 25px; height: 25px;">1</span>
-                                {% elif forloop.counter == 2 %}
-                                    <span class="badge bg-secondary text-white rounded-circle d-inline-flex align-items-center justify-content-center shadow-sm" style="width: 25px; height: 25px;">2</span>
-                                {% elif forloop.counter == 3 %}
-                                    <span class="badge rounded-circle d-inline-flex align-items-center justify-content-center shadow-sm text-white" style="width: 25px; height: 25px; background-color: #cd7f32;">3</span>
-                                {% else %}
-                                    <span class="fw-bold text-muted ms-2">{{ forloop.counter }}</span>
-                                {% endif %}
-                            </td>
-                            
-                            <td class="text-start fw-bold text-dark">
-                                <div class="d-flex align-items-center">
-                                    {% if fila.equipo.escudo %}
-                                        <img src="{{ fila.equipo.escudo.url }}" width="35" height="35" class="rounded-circle me-3 border shadow-sm" style="object-fit: cover;">
-                                    {% else %}
-                                        <div class="bg-light rounded-circle border shadow-sm me-3 d-inline-flex justify-content-center align-items-center" style="width: 35px; height: 35px;">
-                                            <i class="bi bi-shield-fill text-muted opacity-50"></i>
+            <div class="tab-content" id="tabPosicionesContent">
+                
+                <!-- TABLA GENERAL -->
+                <div class="tab-pane fade show active" id="general" role="tabpanel" tabindex="0">
+                    <div class="table-responsive">
+                        <table class="table table-hover clean-table align-middle mb-0 text-center" style="white-space: nowrap;">
+                            <thead>
+                                <tr>
+                                    <th class="ps-4 text-start py-3" style="width: 5%;">#</th>
+                                    <th class="text-start" style="width: 30%;">Equipo</th>
+                                    <th data-bs-toggle="tooltip" title="Partidos Jugados" class="cursor-help">PJ</th>
+                                    <th data-bs-toggle="tooltip" title="Partidos Ganados" class="cursor-help">PG</th>
+                                    <th data-bs-toggle="tooltip" title="Partidos Empatados" class="cursor-help">PE</th>
+                                    <th data-bs-toggle="tooltip" title="Partidos Perdidos" class="cursor-help">PP</th>
+                                    <th data-bs-toggle="tooltip" title="Goles a Favor" class="d-none d-md-table-cell cursor-help">GF</th>
+                                    <th data-bs-toggle="tooltip" title="Goles en Contra" class="d-none d-md-table-cell cursor-help">GC</th>
+                                    <th data-bs-toggle="tooltip" title="Gol Diferencia" class="cursor-help">GD</th>
+                                    <th data-bs-toggle="tooltip" title="Puntos Totales" class="pe-4 fs-6 text-primary cursor-help">PTS</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for fila in tabla_general %}
+                                <tr>
+                                    <td class="ps-4 text-start py-3">
+                                        {% if forloop.counter == 1 %}
+                                            <span class="badge bg-warning text-dark rounded-circle d-inline-flex align-items-center justify-content-center shadow-sm" style="width: 25px; height: 25px;">1</span>
+                                        {% elif forloop.counter == 2 %}
+                                            <span class="badge bg-secondary text-white rounded-circle d-inline-flex align-items-center justify-content-center shadow-sm" style="width: 25px; height: 25px;">2</span>
+                                        {% elif forloop.counter == 3 %}
+                                            <span class="badge rounded-circle d-inline-flex align-items-center justify-content-center shadow-sm text-white" style="width: 25px; height: 25px; background-color: #cd7f32;">3</span>
+                                        {% else %}
+                                            <span class="fw-bold text-muted ms-2">{{ forloop.counter }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-start fw-bold text-dark">
+                                        <div class="d-flex align-items-center">
+                                            <img src="{% if fila.equipo.escudo %}{{ fila.equipo.escudo.url }}{% else %}{% static 'img/default-shield.png' %}{% endif %}" width="35" height="35" class="rounded-circle me-3 border shadow-sm" style="object-fit: cover;">
+                                            <span class="text-truncate" style="max-width: 200px;" title="{{ fila.equipo.nombre }}">{{ fila.equipo.nombre }}</span>
+                                            {% if fila.bono > 0 %}
+                                                <span class="bonus-badge">+{{ fila.bono }} pt</span>
+                                            {% endif %}
                                         </div>
-                                    {% endif %}
-                                    <span class="text-truncate" style="max-width: 200px;" title="{{ fila.equipo.nombre }}">{{ fila.equipo.nombre }}</span>
-                                </div>
-                            </td>
-                            
-                            <td class="fw-medium text-secondary">{{ fila.pj }}</td>
-                            <td class="fw-medium">{{ fila.pg }}</td>
-                            <td class="fw-medium">{{ fila.pe }}</td>
-                            <td class="fw-medium">{{ fila.pp }}</td>
-                            
-                            <td class="d-none d-md-table-cell text-secondary">{{ fila.gf }}</td>
-                            <td class="d-none d-md-table-cell text-secondary">{{ fila.gc }}</td>
-                            
-                            <td class="fw-bold {% if fila.gd > 0 %}text-success{% elif fila.gd < 0 %}text-danger{% else %}text-muted{% endif %}">
-                                {% if fila.gd > 0 %}+{% endif %}{{ fila.gd }}
-                            </td>
-                            
-                            <td class="pe-4 fw-black fs-5" style="color: var(--primary-dark, #0f172a);">
-                                {{ fila.pts }}
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="10" class="text-center py-5">
-                                <div class="d-inline-flex align-items-center justify-content-center bg-light rounded-circle mb-3 border shadow-sm" style="width: 80px; height: 80px;">
-                                    <i class="bi bi-table text-muted opacity-50" style="font-size: 2.5rem;"></i>
-                                </div>
-                                <h5 class="fw-bold text-dark mb-1">Tabla Vacía</h5>
-                                <p class="text-muted small mb-0">Aún no se han jugado partidos o registrado resultados en este torneo.</p>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                                    </td>
+                                    <td class="fw-medium text-secondary">{{ fila.pj }}</td>
+                                    <td class="fw-medium text-success">{{ fila.pg }}</td>
+                                    <td class="fw-medium">{{ fila.pe }}</td>
+                                    <td class="fw-medium text-danger">{{ fila.pp }}</td>
+                                    <td class="d-none d-md-table-cell text-secondary">{{ fila.gf }}</td>
+                                    <td class="d-none d-md-table-cell text-secondary">{{ fila.gc }}</td>
+                                    <td class="fw-bold {% if fila.gd > 0 %}text-success{% elif fila.gd < 0 %}text-danger{% else %}text-muted{% endif %}">
+                                        {% if fila.gd > 0 %}+{% endif %}{{ fila.gd }}
+                                    </td>
+                                    <td class="pe-4 fw-black fs-5 text-primary bg-light">
+                                        {{ fila.puntos }}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="10" class="text-center py-5">
+                                        <div class="d-inline-flex align-items-center justify-content-center bg-light rounded-circle mb-3 border shadow-sm" style="width: 80px; height: 80px;">
+                                            <i class="bi bi-table text-muted opacity-50" style="font-size: 2.5rem;"></i>
+                                        </div>
+                                        <h5 class="fw-bold text-dark mb-1">Tabla Vacía</h5>
+                                        <p class="text-muted small mb-0">Aún no se han jugado partidos o registrado resultados.</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- TABLA SEGUNDA VUELTA -->
+                {% if existe_vuelta2 %}
+                <div class="tab-pane fade" id="vuelta2" role="tabpanel" tabindex="0">
+                    <div class="alert alert-warning border-0 border-bottom rounded-0 mb-0 text-center text-dark small py-2 fw-bold" style="background-color: #fffbeb;">
+                        <i class="bi bi-info-circle-fill text-warning me-1"></i> Esta tabla muestra SOLO los puntos obtenidos en los partidos de revancha (+ el bono).
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover clean-table align-middle mb-0 text-center" style="white-space: nowrap;">
+                            <thead>
+                                <tr>
+                                    <th class="ps-4 text-start py-3" style="width: 5%;">#</th>
+                                    <th class="text-start" style="width: 30%;">Equipo</th>
+                                    <th>PJ</th><th>PG</th><th>PE</th><th>PP</th>
+                                    <th class="d-none d-md-table-cell">GF</th><th class="d-none d-md-table-cell">GC</th>
+                                    <th>GD</th><th class="pe-4 fs-6 text-warning">PTS</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for fila in tabla_vuelta2 %}
+                                <tr>
+                                    <td class="ps-4 text-start py-3 fw-bold text-muted">{{ forloop.counter }}</td>
+                                    <td class="text-start fw-bold text-dark">
+                                        <div class="d-flex align-items-center">
+                                            <img src="{% if fila.equipo.escudo %}{{ fila.equipo.escudo.url }}{% else %}{% static 'img/default-shield.png' %}{% endif %}" width="35" height="35" class="rounded-circle me-3 border shadow-sm" style="object-fit: cover;">
+                                            <span class="text-truncate" style="max-width: 200px;" title="{{ fila.equipo.nombre }}">{{ fila.equipo.nombre }}</span>
+                                            {% if fila.bono > 0 %}
+                                                <span class="bonus-badge">+{{ fila.bono }} pt</span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td class="fw-medium text-secondary">{{ fila.pj }}</td>
+                                    <td class="fw-medium text-success">{{ fila.pg }}</td>
+                                    <td class="fw-medium">{{ fila.pe }}</td>
+                                    <td class="fw-medium text-danger">{{ fila.pp }}</td>
+                                    <td class="d-none d-md-table-cell text-secondary">{{ fila.gf }}</td>
+                                    <td class="d-none d-md-table-cell text-secondary">{{ fila.gc }}</td>
+                                    <td class="fw-bold {% if fila.gd > 0 %}text-success{% elif fila.gd < 0 %}text-danger{% else %}text-muted{% endif %}">
+                                        {% if fila.gd > 0 %}+{% endif %}{{ fila.gd }}
+                                    </td>
+                                    <td class="pe-4 fw-black fs-5 text-warning bg-light">
+                                        {{ fila.puntos }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+
             </div>
         </div>
     </div>
-
 </div>
-
-<style>
-    /* Efecto hover suave para las filas */
-    tbody tr:hover { background-color: #f8fafc !important; }
-    /* Cursor de ayuda (signo de interrogación) para los tooltips */
-    .cursor-help { cursor: help; }
-    
-    /* Efecto hover en el switch */
-    .form-switch .form-check-input:checked {
-        background-color: #f59e0b; /* Naranja/Warning */
-        border-color: #f59e0b;
-    }
-</style>
 
 <script>
     document.addEventListener("DOMContentLoaded", function(){

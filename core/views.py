@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
-from django.db.models import Count, Q, Sum
+from django.db.models import Sum, Q, Count, F, Case, When, IntegerField
 from django.template.loader import get_template
 from django.db import transaction 
 from xhtml2pdf import pisa 
@@ -836,51 +836,68 @@ def toggle_asistencia(request, partido_id, jugador_id):
 
 @login_required
 def tabla_posiciones(request, torneo_id):
-    torneo = Torneo.objects.get(id=torneo_id)
+    torneo = get_object_or_404(Torneo, id=torneo_id)
     equipos = Equipo.objects.filter(torneo=torneo, estado_inscripcion='APROBADO')
-    tabla = []
-
-    for equipo in equipos:
-        partidos = Partido.objects.filter(
-            Q(equipo_local=equipo) | Q(equipo_visita=equipo),
-            estado__in=['JUG', 'WO', 'FINALIZADO'], 
-            etapa='F1' 
-        )
-        
-        pj = 0; pg = 0; pe = 0; pp = 0; gf = 0; gc = 0
-        
-        for p in partidos:
-            pj += 1
-            es_local = (p.equipo_local == equipo)
-            goles_propios = p.goles_local if es_local else p.goles_visita
-            goles_rival = p.goles_visita if es_local else p.goles_local
-            
-            gf += goles_propios
-            gc += goles_rival
-            
-            if goles_propios > goles_rival: pg += 1
-            elif goles_propios < goles_rival: pp += 1
-            else: pe += 1
-        
-        puntos = (pg * 3) + (pe * 1)
-        gol_diferencia = gf - gc
-        
-        tabla.append({
-            'equipo': equipo,
-            'pj': pj, 'pg': pg, 'pe': pe, 'pp': pp,
-            'gf': gf, 'gc': gc, 'gd': gol_diferencia,
-            'pts': puntos,
-            'bono': 0
-        })
     
-    tabla_ordenada = sorted(tabla, key=lambda x: (x['pts'], x['gd'], x['gf']), reverse=True)
-    fase2_ya_generada = equipos.filter(grupo_fase2__in=['A', 'B']).exists()
+    # Función interna para no repetir código matemático
+    def calcular_estadisticas(filtro_vuelta=None):
+        tabla = []
+        for equipo in equipos:
+            # Filtramos los partidos jugados por este equipo en la Fase 1
+            partidos_jugados = Partido.objects.filter(
+                torneo=torneo, etapa='F1', estado__in=['JUG', 'WO']
+            ).filter(Q(equipo_local=equipo) | Q(equipo_visita=equipo))
+            
+            # Si pedimos solo la segunda vuelta, filtramos
+            if filtro_vuelta:
+                partidos_jugados = partidos_jugados.filter(vuelta=filtro_vuelta)
+                
+            pj = pg = pe = pp = gf = gc = 0
+            
+            for p in partidos_jugados:
+                pj += 1
+                es_local = (p.equipo_local == equipo)
+                goles_favor = p.goles_local if es_local else p.goles_visita
+                goles_contra = p.goles_visita if es_local else p.goles_local
+                
+                gf += goles_favor
+                gc += goles_contra
+                
+                if goles_favor > goles_contra:
+                    pg += 1
+                elif goles_favor == goles_contra:
+                    pe += 1
+                else:
+                    pp += 1
+            
+            # Puntos: Partidos Ganados * 3 + Empates * 1 + BONIFICACIÓN
+            puntos = (pg * 3) + (pe * 1) + equipo.puntos_bonificacion
+            gd = gf - gc
+            
+            tabla.append({
+                'equipo': equipo,
+                'pj': pj, 'pg': pg, 'pe': pe, 'pp': pp,
+                'gf': gf, 'gc': gc, 'gd': gd,
+                'puntos': puntos,
+                'bono': equipo.puntos_bonificacion
+            })
+            
+        # Ordenamos por Puntos, luego Gol Diferencia, luego Goles a Favor
+        return sorted(tabla, key=lambda x: (x['puntos'], x['gd'], x['gf']), reverse=True)
+
+    # Generamos ambas tablas
+    tabla_general = calcular_estadisticas(filtro_vuelta=None) # Suma todo
+    tabla_vuelta2 = calcular_estadisticas(filtro_vuelta=2)    # Solo Vuelta 2
+    
+    # Verificamos si ya existe la segunda vuelta para mostrar o no el botón de generarla
+    existe_vuelta2 = Partido.objects.filter(torneo=torneo, etapa='F1', vuelta=2).exists()
 
     return render(request, 'core/tabla_posiciones.html', {
-        'torneo': torneo, 
-        'tabla': tabla_ordenada, 
-        'fase': 1,
-        'fase2_ya_generada': fase2_ya_generada
+        'torneo': torneo,
+        'tabla_general': tabla_general,
+        'tabla_vuelta2': tabla_vuelta2,
+        'existe_vuelta2': existe_vuelta2,
+        'es_organizador': request.user.perfil.rol == 'ORG'
     })
 
 @login_required
@@ -974,11 +991,13 @@ def tabla_posiciones_f2(request, torneo_id):
     tabla_b = calcular_grupo('B')
     
     cuartos_generados = Partido.objects.filter(torneo=torneo, etapa='4TOS').exists()
-
+    llaves_ya_generadas = Partido.objects.filter(torneo=torneo, etapa__in=['4TOS', 'SEMI', 'TERC', 'FINAL']).exists()
+    
     return render(request, 'core/tabla_posiciones_f2.html', {
         'torneo': torneo, 
         'tabla_a': tabla_a, 
         'tabla_b': tabla_b,
+        'llaves_ya_generadas': llaves_ya_generadas,
         'fase': 2,
         'cuartos_generados': cuartos_generados,
         'es_organizador': request.user.perfil.rol == 'ORG'
@@ -988,172 +1007,158 @@ def seleccionar_reporte(request):
     torneos = Torneo.objects.all().order_by('-activo', '-fecha_inicio')
     return render(request, 'core/seleccionar_reporte.html', {'torneos': torneos})
 
-@login_required
+from django.db.models import Sum, Q
+
 def reporte_estadisticas(request, torneo_id):
     torneo = get_object_or_404(Torneo, id=torneo_id)
-    user_perfil = request.user.perfil if hasattr(request.user, 'perfil') else None
-    rol = user_perfil.rol if user_perfil else 'FAN'
-
-    hay_fase1 = Partido.objects.filter(torneo=torneo, etapa='F1').exists()
-    hay_fase2 = Partido.objects.filter(torneo=torneo, etapa='F2').exists()
+    
+    # 1. Determinar el ROL
+    rol = request.user.perfil.rol if request.user.is_authenticated else 'PUB'
+    
+    # 2. Control Inteligente de Fases
+    fase2_generada = Partido.objects.filter(torneo=torneo, etapa='F2').exists()
     hay_llaves = Partido.objects.filter(torneo=torneo, etapa__in=['4TOS', 'SEMI', 'TERC', 'FINAL']).exists()
-
-    fase_forzada = request.GET.get('fase')
-    fase_actual = 1
-
-    # ENRUTADOR INTELIGENTE (Determinar qué tabla mostrar)
-    if rol == 'ORG' and fase_forzada:
-        fase_actual = int(fase_forzada)
+    
+    # 🔥 AQUI SE VERIFICA SI EXISTE LA 2DA VUELTA
+    existe_vuelta2 = Partido.objects.filter(torneo=torneo, etapa='F1', vuelta=2).exists()
+    
+    if rol == 'ORG':
+        fase_actual = int(request.GET.get('fase', 2 if fase2_generada else 1))
     else:
-        if hay_fase2 or hay_llaves:
-            fase_actual = 2
-        else:
-            fase_actual = 1
+        fase_actual = 2 if fase2_generada else 1
 
-    tabla_fase1 = []
+    # 3. Variables Base
+    tabla_general = []
+    tabla_vuelta2 = []
     tabla_a = []
     tabla_b = []
-    equipos_todos = Equipo.objects.filter(torneo=torneo, estado_inscripcion='APROBADO')
-
+    
+    equipos = Equipo.objects.filter(torneo=torneo)
+    equipos_todos = equipos # Solución para el Fair Play
+    
+    # ==========================================
+    # CÁLCULO DE FASE 1
+    # ==========================================
     if fase_actual == 1:
-        for equipo in equipos_todos:
-            partidos = Partido.objects.filter(
-                Q(equipo_local=equipo) | Q(equipo_visita=equipo),
-                estado__in=['JUG', 'WO', 'FINALIZADO'], etapa='F1'
-            )
-            pj=0; pg=0; pe=0; pp=0; gf=0; gc=0
-            for p in partidos:
-                pj += 1
-                es_local = (p.equipo_local == equipo)
-                goles_pro = p.goles_local if es_local else p.goles_visita
-                goles_riv = p.goles_visita if es_local else p.goles_local
-                gf += goles_pro; gc += goles_riv
-                if goles_pro > goles_riv: pg += 1
-                elif goles_pro < goles_riv: pp += 1
-                else: pe += 1
-            tabla_fase1.append({
-                'equipo': equipo, 'pj': pj, 'pg': pg, 'pe': pe, 'pp': pp,
-                'gf': gf, 'gc': gc, 'gd': gf - gc, 'pts': (pg * 3) + (pe * 1)
+        for eq in equipos:
+            locales = Partido.objects.filter(torneo=torneo, etapa='F1', equipo_local=eq, estado__in=['FINALIZADO', 'JUG', 'WO'])
+            visitas = Partido.objects.filter(torneo=torneo, etapa='F1', equipo_visita=eq, estado__in=['FINALIZADO', 'JUG', 'WO'])
+            
+            # --- TABLA GENERAL (Suma TODO y los bonos) ---
+            pj=pg=pe=pp=gf=gc=0
+            for p in locales:
+                pj+=1; gf+=p.goles_local; gc+=p.goles_visita
+                if p.goles_local > p.goles_visita: pg+=1
+                elif p.goles_local == p.goles_visita: pe+=1
+                else: pp+=1
+            for p in visitas:
+                pj+=1; gf+=p.goles_visita; gc+=p.goles_local
+                if p.goles_visita > p.goles_local: pg+=1
+                elif p.goles_visita == p.goles_local: pe+=1
+                else: pp+=1
+            
+            pts = (pg * 3) + pe + eq.puntos_bonificacion
+            tabla_general.append({
+                'equipo': eq, 'pj': pj, 'pg': pg, 'pe': pe, 'pp': pp, 
+                'gf': gf, 'gc': gc, 'gd': gf-gc, 'puntos': pts, 'bono': eq.puntos_bonificacion
             })
-        tabla_fase1 = sorted(tabla_fase1, key=lambda x: (x['pts'], x['gd'], x['gf']), reverse=True)
 
-    elif fase_actual == 2:
-        def calcular_grupo(letra_grupo):
-            equipos_grupo = equipos_todos.filter(grupo_fase2=letra_grupo)
-            lista_tabla = []
-            for equipo in equipos_grupo:
-                partidos = Partido.objects.filter(
-                    Q(equipo_local=equipo) | Q(equipo_visita=equipo),
-                    estado__in=['JUG', 'WO', 'FINALIZADO'], etapa='F2'
-                )
-                pj=0; pg=0; pe=0; pp=0; gf=0; gc=0
-                for p in partidos:
-                    pj+=1
-                    es_local = (p.equipo_local == equipo)
-                    goles_pro = p.goles_local if es_local else p.goles_visita
-                    goles_riv = p.goles_visita if es_local else p.goles_local
-                    gf+=goles_pro; gc+=goles_riv
-                    if goles_pro > goles_riv: pg+=1
-                    elif goles_pro < goles_riv: pp+=1
-                    else: pe+=1
-                pts = (pg * 3) + (pe * 1) + equipo.puntos_bonificacion
-                lista_tabla.append({
-                    'equipo': equipo, 'pj': pj, 'pg': pg, 'pe': pe, 'pp': pp,
-                    'gf': gf, 'gc': gc, 'gd': gf-gc, 'pts': pts, 'bono': equipo.puntos_bonificacion
+            # --- TABLA SEGUNDA VUELTA (Exclusiva) ---
+            if existe_vuelta2:
+                loc2 = locales.filter(vuelta=2)
+                vis2 = visitas.filter(vuelta=2)
+                pj2=pg2=pe2=pp2=gf2=gc2=0
+                for p in loc2:
+                    pj2+=1; gf2+=p.goles_local; gc2+=p.goles_visita
+                    if p.goles_local > p.goles_visita: pg2+=1
+                    elif p.goles_local == p.goles_visita: pe2+=1
+                    else: pp2+=1
+                for p in vis2:
+                    pj2+=1; gf2+=p.goles_visita; gc2+=p.goles_local
+                    if p.goles_visita > p.goles_local: pg2+=1
+                    elif p.goles_visita == p.goles_local: pe2+=1
+                    else: pp2+=1
+                
+                pts2 = (pg2 * 3) + pe2 + eq.puntos_bonificacion
+                tabla_vuelta2.append({
+                    'equipo': eq, 'pj': pj2, 'pg': pg2, 'pe': pe2, 'pp': pp2, 
+                    'gf': gf2, 'gc': gc2, 'gd': gf2-gc2, 'puntos': pts2, 'bono': eq.puntos_bonificacion
                 })
-            return sorted(lista_tabla, key=lambda x: (x['pts'], x['gd'], x['gf']), reverse=True)
-        
-        tabla_a = calcular_grupo('A')
-        tabla_b = calcular_grupo('B')
 
-    # GOLEADORES (Público para todos)
+        # Ordenar tablas
+        tabla_general.sort(key=lambda x: (x['puntos'], x['gd'], x['gf']), reverse=True)
+        if existe_vuelta2:
+            tabla_vuelta2.sort(key=lambda x: (x['puntos'], x['gd'], x['gf']), reverse=True)
+
+    # ==========================================
+    # CÁLCULO DE FASE 2
+    # ==========================================
+    elif fase_actual == 2:
+        for eq in equipos:
+            if not eq.grupo_fase2: continue
+            locales = Partido.objects.filter(torneo=torneo, etapa='F2', equipo_local=eq, estado__in=['FINALIZADO', 'JUG', 'WO'])
+            visitas = Partido.objects.filter(torneo=torneo, etapa='F2', equipo_visita=eq, estado__in=['FINALIZADO', 'JUG', 'WO'])
+            
+            pj=pg=pe=pp=gf=gc=0
+            for p in locales:
+                pj+=1; gf+=p.goles_local; gc+=p.goles_visita
+                if p.goles_local > p.goles_visita: pg+=1
+                elif p.goles_local == p.goles_visita: pe+=1
+                else: pp+=1
+            for p in visitas:
+                pj+=1; gf+=p.goles_visita; gc+=p.goles_local
+                if p.goles_visita > p.goles_local: pg+=1
+                elif p.goles_visita == p.goles_local: pe+=1
+                else: pp+=1
+            
+            pts = (pg * 3) + pe + eq.puntos_bonificacion
+            fila = {'equipo': eq, 'pj': pj, 'pg': pg, 'pe': pe, 'pp': pp, 'gf': gf, 'gc': gc, 'gd': gf-gc, 'pts': pts}
+            
+            if eq.grupo_fase2 == 'A': tabla_a.append(fila)
+            elif eq.grupo_fase2 == 'B': tabla_b.append(fila)
+            
+        tabla_a.sort(key=lambda x: (x['pts'], x['gd'], x['gf']), reverse=True)
+        tabla_b.sort(key=lambda x: (x['pts'], x['gd'], x['gf']), reverse=True)
+
+    # ==========================================
+    # ESTADÍSTICAS EXTRA (Goleadores, Sanciones)
+    # ==========================================
     goleadores = DetallePartido.objects.filter(partido__torneo=torneo, tipo='GOL').values(
         'jugador__nombres', 'jugador__equipo__nombre', 'jugador__equipo__escudo'
     ).annotate(total_goles=Count('id')).order_by('-total_goles', 'jugador__nombres')[:15]
 
-    # SANCIONES ACTIVAS (Público para todos)
-    sancionados_activos = []
-    jugadores_suspendidos = Jugador.objects.filter(equipo__in=equipos_todos, partidos_suspension__gt=0)
-    for j in jugadores_suspendidos:
-        detalles = DetallePartido.objects.filter(jugador=j, partido__torneo=torneo).order_by('partido__fecha_hora')
-        motivo = "Suspensión Disciplinaria"
-        ultimo_fuerte = detalles.filter(tipo__in=['TR', 'DA', 'EBRI', 'AZUL']).last()
-        amarillas_totales = detalles.filter(tipo='TA')
-        cantidad_ta = amarillas_totales.count()
-        
-        ultima_amarilla_sancionable = None
-        if cantidad_ta > 0 and cantidad_ta % 4 == 0:
-            ultima_amarilla_sancionable = amarillas_totales.last()
-
-        if ultima_amarilla_sancionable and ultimo_fuerte:
-            if ultima_amarilla_sancionable.partido.fecha_hora > ultimo_fuerte.partido.fecha_hora: motivo = "Acumulación 4 Amarillas"
-            else:
-                if ultimo_fuerte.tipo == 'TR': motivo = "Roja Directa"
-                elif ultimo_fuerte.tipo == 'DA': motivo = "Roja por Acumulación (DA)"
-                else: motivo = f"Sanción Especial ({ultimo_fuerte.tipo})"
-        elif ultima_amarilla_sancionable: motivo = "Acumulación 4 Amarillas"
-        elif ultimo_fuerte:
-            if ultimo_fuerte.tipo == 'TR': motivo = "Roja Directa"
-            elif ultimo_fuerte.tipo == 'DA': motivo = "Roja por Acumulación (DA)"
-            else: motivo = f"Sanción Especial ({ultimo_fuerte.tipo})"
-
-        sancionados_activos.append({'jugador': j, 'motivo': motivo, 'restantes': f"Debe {j.partidos_suspension} fecha(s)"})
-
-    # FAIR PLAY Y PARTIDOS JUGADOS (Solo DIR, VOC y ORG)
-    if rol in ['ORG', 'VOC']:
-        equipos_permitidos = equipos_todos
-    elif rol == 'DIR':
-        equipos_permitidos = Equipo.objects.filter(torneo=torneo, dirigente=request.user, estado_inscripcion='APROBADO')
+    sancionados_activos = Sancion.objects.filter(torneo=torneo, pagada=False).select_related('jugador', 'equipo')
+    # Equipos permitidos para dropdown
+    if rol == 'DIR':
+        equipos_permitidos = equipos_todos.filter(representante=request.user)
     else:
-        equipos_permitidos = Equipo.objects.none()
+        equipos_permitidos = equipos_todos
 
     equipo_id = request.GET.get('equipo')
-    jugadores_detalle = []
     equipo_seleccionado = None
+    jugadores_detalle = []
 
-    # Autoseleccionar equipo si el dirigente solo tiene 1
-    if not equipo_id and rol == 'DIR' and equipos_permitidos.count() == 1:
-        equipo_seleccionado = equipos_permitidos.first()
-    elif equipo_id and equipo_id.isdigit():
-        try:
-            equipo_seleccionado = equipos_permitidos.get(id=equipo_id)
-        except Equipo.DoesNotExist:
-            equipo_seleccionado = None
-
-    if equipo_seleccionado:
-        # ✨ MAGIA: DETERMINAR ETAPA ACTUAL PARA REINICIAR AMARILLAS Y DA ✨
-        if hay_llaves:
-            etapas_validas = ['4TOS', 'SEMI', 'TERC', 'FINAL']
-        elif hay_fase2:
-            etapas_validas = ['F2']
-        else:
-            etapas_validas = ['F1']
-
-        roster = Jugador.objects.filter(equipo=equipo_seleccionado)
-        for j in roster:
-            # Estadísticas GLOBALES (Lo que NUNCA se borra en todo el torneo)
-            stats_global = DetallePartido.objects.filter(jugador=j, partido__torneo=torneo)
-            
-            # Estadísticas FASE ACTUAL (Lo que se reinicia al pasar de ronda)
-            stats_fase = DetallePartido.objects.filter(
-                jugador=j, 
-                partido__torneo=torneo, 
-                partido__etapa__in=etapas_validas
-            )
-            
-            jugadores_detalle.append({
-                'nombre': j.nombres, 
-                'pj': stats_global.filter(tipo='ASIS').count(), # GLOBAL: Partidos jugados
-                'ta': stats_fase.filter(tipo='TA').count(),     # REINICIO: Amarillas
-                'da': stats_fase.filter(tipo='DA').count(),     # REINICIO: Rojas por Acumulación (Doble Amarilla)
-                'tr': stats_global.filter(tipo='TR').count(),   # GLOBAL: Rojas Directas (NUNCA SE BORRAN) 🔥
-                'goles': stats_global.filter(tipo='GOL').count()# GLOBAL: Goles
-            })
+    if equipo_id:
+        equipo_seleccionado = get_object_or_404(Equipo, id=equipo_id, torneo=torneo)
+        if rol == 'ORG' or (rol == 'DIR' and equipo_seleccionado.representante == request.user) or rol == 'PUB':
+            jugadores = Jugador.objects.filter(equipo=equipo_seleccionado)
+            for j in jugadores:
+                ta = Tarjeta.objects.filter(jugador=j, partido__torneo=torneo, tipo='AMARILLA').count()
+                da = Tarjeta.objects.filter(jugador=j, partido__torneo=torneo, tipo='DOBLE_AMARILLA').count()
+                tr = Tarjeta.objects.filter(jugador=j, partido__torneo=torneo, tipo='ROJA').count()
+                
+                pj_jugador = Partido.objects.filter(torneo=torneo, estado__in=['FINALIZADO', 'JUG']).filter(Q(equipo_local=equipo_seleccionado) | Q(equipo_visita=equipo_seleccionado)).count()
+                jugadores_detalle.append({'nombre': j.nombres, 'pj': pj_jugador, 'ta': ta, 'da': da, 'tr': tr})
+            jugadores_detalle.sort(key=lambda x: (x['tr'], x['da'], x['ta']), reverse=True)
 
     return render(request, 'core/reporte_estadisticas.html', {
         'torneo': torneo, 
+        'rol': rol,
         'fase_actual': fase_actual,
-        'tabla_fase1': tabla_fase1,
+        'hay_llaves': hay_llaves,
+        'tabla_general': tabla_general,
+        'tabla_vuelta2': tabla_vuelta2,
+        'existe_vuelta2': existe_vuelta2,
         'tabla_a': tabla_a,
         'tabla_b': tabla_b,
         'goleadores': goleadores, 
@@ -1161,8 +1166,6 @@ def reporte_estadisticas(request, torneo_id):
         'equipo_seleccionado': equipo_seleccionado, 
         'jugadores_detalle': jugadores_detalle, 
         'sancionados_activos': sancionados_activos, 
-        'rol': rol,
-        'hay_llaves': hay_llaves
     })
 
 @login_required
@@ -2142,17 +2145,31 @@ def llaves_eliminatorias(request, torneo_id):
 # =========================================================
 
 @login_required
-@user_passes_test(es_organizador)
+@user_passes_test(lambda u: u.perfil.rol == 'ORG')
 def revertir_fase2(request, torneo_id):
-    """ Deshace la Fase 2: Borra partidos, bonos y grupos """
+    """ Deshace la creación de los grupos de la Fase 2 """
     torneo = get_object_or_404(Torneo, id=torneo_id)
-    with transaction.atomic():
-        Partido.objects.filter(torneo=torneo, etapa__in=['F2', '4TOS', 'SEMI', 'TERC', 'FINAL']).delete()
-        Equipo.objects.filter(torneo=torneo).update(grupo_fase2='N', puntos_bonificacion=0)
-        torneo.fase2_ida_vuelta = False
-        torneo.fase3_ida_vuelta = False
-        torneo.save()
-    messages.success(request, '✅ Fase 2 revertida con éxito. Los grupos y partidos han sido eliminados.')
+    if request.method == 'POST':
+        with transaction.atomic():
+            # 1. Borramos todos los partidos programados de la Fase 2
+            Partido.objects.filter(torneo=torneo, etapa='F2').delete()
+            # 2. Le quitamos el Grupo A y B a los equipos. Usamos "" para evitar el error NOT NULL
+            Equipo.objects.filter(torneo=torneo).update(grupo_fase2="")
+            
+        messages.warning(request, "🔄 Reverso exitoso: Se eliminaron los Grupos A y B de la Fase 2.")
+    return redirect('tabla_posiciones', torneo_id=torneo.id)
+
+@login_required
+@user_passes_test(lambda u: u.perfil.rol == 'ORG')
+def revertir_llaves(request, torneo_id):
+    """ Deshace la creación de Cuartos, Semis y Finales """
+    torneo = get_object_or_404(Torneo, id=torneo_id)
+    if request.method == 'POST':
+        with transaction.atomic():
+            # Borramos cualquier partido que pertenezca a la etapa eliminatoria
+            Partido.objects.filter(torneo=torneo, etapa__in=['4TOS', 'SEMI', 'TERC', 'FINAL']).delete()
+            
+        messages.warning(request, "🔄 Reverso exitoso: Se eliminaron las llaves eliminatorias.")
     return redirect('tabla_posiciones_f2', torneo_id=torneo.id)
 
 @login_required
@@ -2267,3 +2284,168 @@ def generar_fixture_fase2(request, torneo_id):
         'fixture': fixture_combinado,
         'ida_vuelta': torneo.fase2_ida_vuelta
     })
+
+@login_required
+@user_passes_test(lambda u: u.perfil.rol == 'ORG')
+def generar_segunda_vuelta_f1(request, torneo_id):
+    torneo = get_object_or_404(Torneo, id=torneo_id)
+    
+    if request.method == 'POST':
+        # 1. Obtenemos cómo quedó la tabla de la Vuelta 1 exactamente
+        # Reutilizamos tu lógica matemática para saber el Top 2
+        equipos = Equipo.objects.filter(torneo=torneo, estado_inscripcion='APROBADO')
+        tabla_v1 = []
+        for eq in equipos:
+            partidos_v1 = Partido.objects.filter(torneo=torneo, etapa='F1', vuelta=1, estado__in=['JUG', 'WO']).filter(Q(equipo_local=eq) | Q(equipo_visita=eq))
+            pts = sum([3 if (p.equipo_local == eq and p.goles_local > p.goles_visita) or (p.equipo_visita == eq and p.goles_visita > p.goles_local) else 1 if p.goles_local == p.goles_visita else 0 for p in partidos_v1])
+            gd = sum([p.goles_local - p.goles_visita if p.equipo_local == eq else p.goles_visita - p.goles_local for p in partidos_v1])
+            tabla_v1.append({'equipo': eq, 'pts': pts, 'gd': gd})
+            
+        tabla_v1 = sorted(tabla_v1, key=lambda x: (x['pts'], x['gd']), reverse=True)
+        
+        with transaction.atomic():
+            # 2. Damos bonificaciones a los dos primeros (2 pts al primero, 1 pt al segundo)
+            if len(tabla_v1) > 0:
+                eq1 = tabla_v1[0]['equipo']
+                eq1.puntos_bonificacion += 2
+                eq1.save()
+            if len(tabla_v1) > 1:
+                eq2 = tabla_v1[1]['equipo']
+                eq2.puntos_bonificacion += 1
+                eq2.save()
+
+            # 3. Copiamos todos los partidos de la Vuelta 1, invertimos la localía y les ponemos vuelta=2
+            partidos_ida = Partido.objects.filter(torneo=torneo, etapa='F1', vuelta=1)
+            for p in partidos_ida:
+                Partido.objects.create(
+                    torneo=torneo,
+                    etapa='F1',
+                    vuelta=2,
+                    numero_fecha=p.numero_fecha + 10, # Para diferenciar en el calendario
+                    equipo_local=p.equipo_visita, # Invertimos
+                    equipo_visita=p.equipo_local, # Invertimos
+                    estado='PROG',
+                    fecha_hora=None
+                )
+                
+        messages.success(request, f"✅ ¡Segunda Vuelta Iniciada! 2pts para {tabla_v1[0]['equipo'].nombre} y 1pt para {tabla_v1[1]['equipo'].nombre}.")
+        return redirect('tabla_posiciones', torneo_id=torneo.id)
+
+@login_required
+@user_passes_test(lambda u: u.perfil.rol == 'ORG')
+def revertir_segunda_vuelta_f1(request, torneo_id):
+    torneo = get_object_or_404(Torneo, id=torneo_id)
+    
+    if request.method == 'POST':
+        with transaction.atomic():
+            # 1. Borramos TODOS los partidos que sean de la Fase 1 y Vuelta 2
+            partidos_v2 = Partido.objects.filter(torneo=torneo, etapa='F1', vuelta=2)
+            cantidad_borrada = partidos_v2.count()
+            partidos_v2.delete()
+            
+            # 2. Reseteamos los puntos de bonificación a 0 para todos los equipos de este torneo
+            equipos = Equipo.objects.filter(torneo=torneo)
+            for eq in equipos:
+                if eq.puntos_bonificacion > 0:
+                    eq.puntos_bonificacion = 0
+                    eq.save()
+                    
+        messages.warning(request, f"🔄 Reverso exitoso: Se eliminaron {cantidad_borrada} partidos de revancha y se quitaron los bonos.")
+        return redirect('tabla_posiciones', torneo_id=torneo.id)
+    
+@login_required
+@user_passes_test(lambda u: u.perfil.rol == 'ORG')
+def generar_llaves(request, torneo_id):
+    """ Función esqueleto para generar Cuartos de Final """
+    torneo = get_object_or_404(Torneo, id=torneo_id)
+    if request.method == 'POST':
+        # 🚧 Aquí luego pondremos la lógica matemática para los cruces.
+        messages.success(request, "🚧 Botón conectado correctamente. (Falta programar la lógica de los Cuartos de Final).")
+        return redirect('tabla_posiciones_f2', torneo_id=torneo.id)
+    return redirect('tabla_posiciones_f2', torneo_id=torneo.id)
+
+@login_required
+@user_passes_test(lambda u: u.perfil.rol == 'ORG')
+def generar_vuelta2_f1(request, torneo_id):
+    torneo = get_object_or_404(Torneo, id=torneo_id)
+    
+    if request.method == 'POST':
+        with transaction.atomic():
+            # 1. Buscamos todos los partidos de la primera vuelta
+            partidos_vuelta1 = Partido.objects.filter(torneo=torneo, etapa='F1', vuelta=1)
+            
+            if not partidos_vuelta1.exists():
+                messages.error(request, "⛔ No puedes iniciar la 2da Vuelta porque no hay partidos en la 1ra Vuelta.")
+                return redirect('tabla_posiciones', torneo_id=torneo.id)
+
+            # 2. Averiguamos cuál fue la última jornada de la Vuelta 1 (ej: Jornada 5)
+            ultima_fecha = partidos_vuelta1.aggregate(Max('numero_fecha'))['numero_fecha__max'] or 0
+            
+            # 3. Generamos el fixture de revancha automáticamente
+            partidos_creados = 0
+            for p in partidos_vuelta1:
+                # OJO: Solo clonamos un partido de revancha si no existe ya
+                if not Partido.objects.filter(torneo=torneo, etapa='F1', vuelta=2, equipo_local=p.equipo_visita, equipo_visita=p.equipo_local).exists():
+                    Partido.objects.create(
+                        torneo=torneo,
+                        etapa='F1',
+                        vuelta=2, # 🔥 Le decimos al sistema que esto es la revancha
+                        numero_fecha=p.numero_fecha + ultima_fecha, # Si la V1 terminó en J5, la revancha empieza en J6
+                        equipo_local=p.equipo_visita, # 🔄 INVERTIMOS LOCALÍA
+                        equipo_visita=p.equipo_local, # 🔄 INVERTIMOS LOCALÍA
+                        estado='PROG',
+                        cancha=p.cancha
+                    )
+                    partidos_creados += 1
+            
+            # 4. (Opcional) Aquí puedes agregar la lógica para sumar los bonos a los equipos top.
+            
+        messages.success(request, f"✅ ¡Fixture de Revancha generado! Se crearon {partidos_creados} nuevos partidos.")
+    return redirect('tabla_posiciones', torneo_id=torneo.id)
+
+@login_required
+@user_passes_test(lambda u: u.perfil.rol == 'ORG')
+def otorgar_bonos_vuelta2(request, torneo_id):
+    torneo = get_object_or_404(Torneo, id=torneo_id)
+    if request.method == 'POST':
+        with transaction.atomic():
+            # 1. Obtenemos todos los equipos del torneo
+            equipos = Equipo.objects.filter(torneo=torneo)
+            
+            # 2. Calculamos los puntos SOLO de la vuelta 2 para saber quién ganó esta etapa
+            ranking = []
+            for eq in equipos:
+                # Partidos de local en vuelta 2
+                locales = Partido.objects.filter(torneo=torneo, etapa='F1', vuelta=2, equipo_local=eq, estado__in=['FINALIZADO', 'JUG', 'WO'])
+                # Partidos de visita en vuelta 2
+                visitas = Partido.objects.filter(torneo=torneo, etapa='F1', vuelta=2, equipo_visita=eq, estado__in=['FINALIZADO', 'JUG', 'WO'])
+                
+                puntos = 0
+                gd = 0
+                for p in locales:
+                    if p.goles_local > p.goles_visita: puntos += 3
+                    elif p.goles_local == p.goles_visita: puntos += 1
+                    gd += (p.goles_local - p.goles_visita)
+                    
+                for p in visitas:
+                    if p.goles_visita > p.goles_local: puntos += 3
+                    elif p.goles_visita == p.goles_local: puntos += 1
+                    gd += (p.goles_visita - p.goles_local)
+                
+                ranking.append({'equipo': eq, 'puntos': puntos, 'gd': gd})
+            
+            # 3. Ordenamos por puntos (y luego por GD para desempatar)
+            ranking.sort(key=lambda x: (x['puntos'], x['gd']), reverse=True)
+            
+            # 4. Asignamos los bonos a los 2 primeros (Si hay al menos 2 equipos)
+            if len(ranking) >= 1:
+                campeon = ranking[0]['equipo']
+                campeon.puntos_bonificacion += 2
+                campeon.save()
+            if len(ranking) >= 2:
+                subcampeon = ranking[1]['equipo']
+                subcampeon.puntos_bonificacion += 1
+                subcampeon.save()
+                
+        messages.success(request, f"🏆 ¡Bonificaciones entregadas! +2 pts para {ranking[0]['equipo'].nombre} y +1 pt para {ranking[1]['equipo'].nombre}.")
+    return redirect('tabla_posiciones', torneo_id=torneo.id)

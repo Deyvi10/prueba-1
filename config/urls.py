@@ -143,4 +143,10 @@ urlpatterns = [
     path('torneos/eliminar/<int:torneo_id>/', views.eliminar_torneo, name='eliminar_torneo'),
     path('torneo/<int:torneo_id>/revertir-fase2/', views.revertir_fase2, name='revertir_fase2'),
     path('torneo/<int:torneo_id>/fixture-fase2/', views.generar_fixture_fase2, name='generar_fixture_fase2'),
+    path('torneo/<int:torneo_id>/generar-vuelta-2/', views.generar_segunda_vuelta_f1, name='generar_vuelta2_f1'),
+    path('torneo/<int:torneo_id>/revertir-vuelta-2/', views.revertir_segunda_vuelta_f1, name='revertir_vuelta2_f1'),
+    path('torneo/<int:torneo_id>/generar-llaves/', views.generar_llaves, name='generar_llaves'),
+    path('torneo/<int:torneo_id>/revertir-fase2/', views.revertir_fase2, name='revertir_fase2'),
+    path('torneo/<int:torneo_id>/revertir-llaves/', views.revertir_llaves, name='revertir_llaves'),
+    path('torneo/<int:torneo_id>/otorgar-bonos/', views.otorgar_bonos_vuelta2, name='otorgar_bonos_vuelta2'),
 ]

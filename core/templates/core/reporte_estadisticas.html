@@ -1,4 +1,7 @@
 {% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Estadísticas Oficiales | Torneos{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -39,6 +42,17 @@
         align-items: center;
     }
 
+    /* --- PESTAÑAS PARA LAS TABLAS --- */
+    .nav-tabs { border-bottom: 2px solid var(--clean-border); }
+    .nav-tabs .nav-link { 
+        font-weight: 800; color: #6b7280; border: none; border-bottom: 3px solid transparent; 
+        padding: 12px 20px; font-size: 0.85rem; transition: all 0.2s;
+    }
+    .nav-tabs .nav-link:hover { color: var(--accent-blue); border-color: transparent; }
+    .nav-tabs .nav-link.active { 
+        color: var(--accent-blue); background: transparent; border-bottom: 3px solid var(--accent-blue); 
+    }
+
     /* --- ESTILOS DE LISTAS/TARJETAS COMPACTAS --- */
     .list-item-pro {
         display: flex;
@@ -62,6 +76,13 @@
     .rank-3 { background: linear-gradient(135deg, #b45309, #78350f); color: white; }
     .rank-other { background: #f1f5f9; color: #64748b; font-weight: bold; }
 
+    /* Pastilla de Bonificación para la tabla pública */
+    .bonus-pill {
+        background-color: #fffbeb; color: #d97706; border: 1px solid #fde68a; 
+        font-size: 0.65rem; padding: 2px 6px; border-radius: 20px; font-weight: 900;
+        box-shadow: 0 2px 4px rgba(217, 119, 6, 0.1); margin-left: 6px;
+    }
+
     /* Estadísticas en pastillas */
     .stat-pill {
         display: inline-flex; align-items: center; justify-content: center;
@@ -84,34 +105,28 @@
     /* ==============================================================
        ✨ MAGIA ANTI-SCROLL HORIZONTAL (TABLAS COMPACTAS) ✨
        ============================================================== */
+    .table-compact th { background-color: #f9fafb; color: #374151; font-weight: 800; text-transform: uppercase; border-bottom: 2px solid var(--clean-border); }
     .table-compact th, .table-compact td {
         vertical-align: middle;
         white-space: nowrap;
-        padding: 10px 6px;
+        padding: 12px 6px;
     }
-    .team-shield-mini { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1px solid var(--clean-border); }
+    .team-shield-mini { width: 28px; height: 28px; border-radius: 50%; object-fit: contain; border: 1px solid var(--clean-border); }
     
     @media (max-width: 768px) {
         .card-header-pro { flex-direction: column; align-items: flex-start; gap: 10px; padding: 0.8rem 1rem; }
         .card-header-pro form { width: 100%; }
         .clean-select { max-width: 100%; }
+        .nav-tabs .nav-link { font-size: 0.75rem; padding: 10px 12px; }
         
         /* Optimización extrema de la tabla para celulares */
-        .table-compact th, .table-compact td {
-            padding: 8px 3px !important; /* Mínimo padding */
-            font-size: 0.75rem !important; /* Letra reducida pero legible */
-        }
-        .team-name-col {
-            max-width: 95px; /* Evita que nombres largos empujen la tabla */
-            overflow: hidden;
-            text-overflow: ellipsis;
-            display: inline-block;
-            vertical-align: middle;
-        }
+        .table-compact th, .table-compact td { padding: 8px 3px !important; font-size: 0.75rem !important; }
+        .team-name-col { max-width: 95px; overflow: hidden; text-overflow: ellipsis; display: inline-block; vertical-align: middle; }
         .hide-on-mobile { display: none !important; } /* Oculta GF y GC en celulares */
         .rank-badge { width: 22px; height: 22px; font-size: 0.65rem; margin-right: 4px; margin-left: 2px; }
-        .team-shield-mini { width: 18px; height: 18px; margin-right: 4px !important; }
+        .team-shield-mini { width: 20px; height: 20px; margin-right: 4px !important; }
         .stat-pill { padding: 2px 6px; font-size: 0.7rem; }
+        .bonus-pill { font-size: 0.55rem; padding: 1px 4px; }
     }
 
     /* Scroll Vertical elegante para tarjetas de Goleadores y Tarjetas */
@@ -159,58 +174,129 @@
 
 
     {% if fase_actual == 1 %}
+        <!-- ========================================== -->
+        <!-- TABLA FASE 1 CON PESTAÑAS (PÚBLICO)        -->
+        <!-- ========================================== -->
         <div class="card card-pro mb-4 border-top border-4" style="border-top-color: var(--accent-blue) !important;">
-            <div class="card-header-pro bg-white">
-                <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 35px; height: 35px;"><i class="bi bi-list-ol"></i></div>
-                <div>
-                    <h6 class="mb-0 fw-black text-dark">Tabla General - Fase 1</h6>
-                    <small class="text-muted d-block lh-1 mt-1" style="font-size: 0.7rem;">Clasificación por Puntos y Gol Diferencia.</small>
-                </div>
+            <div class="card-header bg-white p-0 border-0">
+                <!-- PESTAÑAS -->
+                <ul class="nav nav-tabs px-2 pt-2" id="tabEstadisticas" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="acumulada-tab" data-bs-toggle="tab" data-bs-target="#acumulada" type="button" role="tab">TABLA GENERAL (ACUMULADA)</button>
+                    </li>
+                    {% if existe_vuelta2 %}
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="vuelta2-tab" data-bs-toggle="tab" data-bs-target="#vuelta2" type="button" role="tab">RENDIMIENTO 2DA VUELTA</button>
+                    </li>
+                    {% endif %}
+                </ul>
             </div>
+
             <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover table-compact text-center align-middle mb-0">
-                        <thead class="bg-light text-muted" style="font-size: 0.7rem;">
-                            <tr>
-                                <th class="text-start ps-2">#</th>
-                                <th class="text-start">Equipo</th>
-                                <th title="Partidos Jugados">PJ</th>
-                                <th title="Ganados">G</th>
-                                <th title="Empatados">E</th>
-                                <th title="Perdidos">P</th>
-                                <th class="hide-on-mobile" title="Goles a Favor">GF</th>
-                                <th class="hide-on-mobile" title="Goles en Contra">GC</th>
-                                <th title="Gol Diferencia">GD</th>
-                                <th class="pe-2 fw-black text-dark">PTS</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for fila in tabla_fase1 %}
-                            <tr class="border-bottom" style="border-color: rgba(0,0,0,0.03) !important;">
-                                <td class="text-start ps-1">
-                                    <div class="rank-badge {% if forloop.counter == 1 %}rank-1{% elif forloop.counter == 2 %}rank-2{% elif forloop.counter == 3 %}rank-3{% else %}rank-other{% endif %}">{{ forloop.counter }}</div>
-                                </td>
-                                <td class="text-start fw-bold text-dark">
-                                    <div class="d-flex align-items-center">
-                                        {% if fila.equipo.escudo %}<img src="{{ fila.equipo.escudo.url }}" class="team-shield-mini me-2">
-                                        {% else %}<i class="bi bi-shield-fill text-muted opacity-50 me-1"></i>{% endif %}
-                                        <span class="team-name-col" title="{{ fila.equipo.nombre }}">{{ fila.equipo.nombre }}</span>
-                                    </div>
-                                </td>
-                                <td class="text-secondary fw-bold">{{ fila.pj }}</td>
-                                <td class="text-success">{{ fila.pg }}</td>
-                                <td class="text-warning">{{ fila.pe }}</td>
-                                <td class="text-danger">{{ fila.pp }}</td>
-                                <td class="hide-on-mobile text-secondary">{{ fila.gf }}</td>
-                                <td class="hide-on-mobile text-secondary">{{ fila.gc }}</td>
-                                <td><span class="stat-pill {% if fila.gd > 0 %}success{% elif fila.gd < 0 %}danger{% else %}bg-light{% endif %}">{% if fila.gd > 0 %}+{% endif %}{{ fila.gd }}</span></td>
-                                <td class="pe-2 fw-black" style="color: var(--dark-panel); font-size: 1rem;">{{ fila.pts }}</td>
-                            </tr>
-                            {% empty %}
-                            <tr><td colspan="10" class="py-4 text-muted text-center small">Aún no hay partidos jugados.</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                <div class="tab-content" id="tabEstadisticasContent">
+                    
+                    <!-- TABLA ACUMULADA (LA QUE VE TODO EL MUNDO POR DEFECTO) -->
+                    <div class="tab-pane fade show active" id="acumulada" role="tabpanel" tabindex="0">
+                        <div class="table-responsive">
+                            <table class="table table-hover table-compact text-center align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th class="text-start ps-2">#</th>
+                                        <th class="text-start">Equipo</th>
+                                        <th title="Partidos Jugados">PJ</th>
+                                        <th title="Ganados">G</th>
+                                        <th title="Empatados">E</th>
+                                        <th title="Perdidos">P</th>
+                                        <th class="hide-on-mobile" title="Goles a Favor">GF</th>
+                                        <th class="hide-on-mobile" title="Goles en Contra">GC</th>
+                                        <th title="Gol Diferencia">GD</th>
+                                        <th class="pe-2 fw-black text-primary">PTS</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for fila in tabla_general %}
+                                    <tr class="border-bottom" style="border-color: rgba(0,0,0,0.03) !important;">
+                                        <td class="text-start ps-1">
+                                            <div class="rank-badge {% if forloop.counter == 1 %}rank-1{% elif forloop.counter == 2 %}rank-2{% elif forloop.counter == 3 %}rank-3{% else %}rank-other{% endif %}">{{ forloop.counter }}</div>
+                                        </td>
+                                        <td class="text-start fw-bold text-dark">
+                                            <div class="d-flex align-items-center">
+                                                <img src="{% if fila.equipo.escudo %}{{ fila.equipo.escudo.url }}{% else %}{% static 'img/default-shield.png' %}{% endif %}" class="team-shield-mini me-2">
+                                                <span class="team-name-col" title="{{ fila.equipo.nombre }}">{{ fila.equipo.nombre }}</span>
+                                                <!-- 🔥 AQUI SE MUESTRAN LOS BONOS AL PÚBLICO 🔥 -->
+                                                {% if fila.bono > 0 %}
+                                                    <span class="bonus-pill">+{{ fila.bono }} pt</span>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                        <td class="text-secondary fw-bold">{{ fila.pj }}</td>
+                                        <td class="text-success">{{ fila.pg }}</td>
+                                        <td class="text-warning text-darken">{{ fila.pe }}</td>
+                                        <td class="text-danger">{{ fila.pp }}</td>
+                                        <td class="hide-on-mobile text-secondary">{{ fila.gf }}</td>
+                                        <td class="hide-on-mobile text-secondary">{{ fila.gc }}</td>
+                                        <td><span class="stat-pill {% if fila.gd > 0 %}success{% elif fila.gd < 0 %}danger{% else %}bg-light{% endif %}">{% if fila.gd > 0 %}+{% endif %}{{ fila.gd }}</span></td>
+                                        <td class="pe-2 fw-black" style="color: var(--accent-blue); font-size: 1rem; background-color: #f8fafc;">{{ fila.puntos }}</td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr><td colspan="10" class="py-4 text-muted text-center small">Aún no hay partidos jugados.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- TABLA SOLO SEGUNDA VUELTA -->
+                    {% if existe_vuelta2 %}
+                    <div class="tab-pane fade" id="vuelta2" role="tabpanel" tabindex="0">
+                        <div class="alert alert-warning border-0 border-bottom rounded-0 mb-0 text-center text-dark small py-2 fw-bold" style="background-color: #fffbeb;">
+                            <i class="bi bi-info-circle-fill text-warning me-1"></i> Esta tabla muestra el rendimiento exclusivo de los partidos de revancha (+ bonos).
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover table-compact text-center align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th class="text-start ps-2">#</th>
+                                        <th class="text-start">Equipo</th>
+                                        <th title="Partidos Jugados">PJ</th>
+                                        <th title="Ganados">G</th>
+                                        <th title="Empatados">E</th>
+                                        <th title="Perdidos">P</th>
+                                        <th class="hide-on-mobile" title="Goles a Favor">GF</th>
+                                        <th class="hide-on-mobile" title="Goles en Contra">GC</th>
+                                        <th title="Gol Diferencia">GD</th>
+                                        <th class="pe-2 fw-black text-warning">PTS</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for fila in tabla_vuelta2 %}
+                                    <tr class="border-bottom" style="border-color: rgba(0,0,0,0.03) !important;">
+                                        <td class="text-start ps-1"><div class="rank-badge rank-other">{{ forloop.counter }}</div></td>
+                                        <td class="text-start fw-bold text-dark">
+                                            <div class="d-flex align-items-center">
+                                                <img src="{% if fila.equipo.escudo %}{{ fila.equipo.escudo.url }}{% else %}{% static 'img/default-shield.png' %}{% endif %}" class="team-shield-mini me-2">
+                                                <span class="team-name-col" title="{{ fila.equipo.nombre }}">{{ fila.equipo.nombre }}</span>
+                                                {% if fila.bono > 0 %}
+                                                    <span class="bonus-pill">+{{ fila.bono }} pt</span>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                        <td class="text-secondary fw-bold">{{ fila.pj }}</td>
+                                        <td class="text-success">{{ fila.pg }}</td>
+                                        <td class="text-warning text-darken">{{ fila.pe }}</td>
+                                        <td class="text-danger">{{ fila.pp }}</td>
+                                        <td class="hide-on-mobile text-secondary">{{ fila.gf }}</td>
+                                        <td class="hide-on-mobile text-secondary">{{ fila.gc }}</td>
+                                        <td><span class="stat-pill {% if fila.gd > 0 %}success{% elif fila.gd < 0 %}danger{% else %}bg-light{% endif %}">{% if fila.gd > 0 %}+{% endif %}{{ fila.gd }}</span></td>
+                                        <td class="pe-2 fw-black" style="color: var(--accent-gold); font-size: 1rem; background-color: #fffbeb;">{{ fila.puntos }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {% endif %}
+
                 </div>
             </div>
         </div>
@@ -227,7 +313,7 @@
         <div class="row g-3 mb-4">
             <div class="col-lg-6">
                 <div class="card card-pro h-100 border-top border-4" style="border-top-color: #0ea5e9 !important;">
-                    <div class="bg-light text-center fw-black py-2 small text-uppercase" style="color: #0ea5e9; letter-spacing: 1px;">GRUPO A (Impares)</div>
+                    <div class="bg-light text-center fw-black py-2 small text-uppercase" style="color: #0ea5e9; letter-spacing: 1px;">GRUPO A</div>
                     <div class="card-body p-0">
                         <div class="table-responsive">
                             <table class="table table-hover table-compact text-center align-middle mb-0">
@@ -246,7 +332,7 @@
                                         <td class="text-start ps-1"><div class="rank-badge {% if forloop.counter <= 4 %}bg-dark text-white{% else %}rank-other{% endif %}">{{ forloop.counter }}</div></td>
                                         <td class="text-start fw-bold text-dark">
                                             <div class="d-flex align-items-center">
-                                                {% if fila.equipo.escudo %}<img src="{{ fila.equipo.escudo.url }}" class="team-shield-mini me-1">{% endif %}
+                                                <img src="{% if fila.equipo.escudo %}{{ fila.equipo.escudo.url }}{% else %}{% static 'img/default-shield.png' %}{% endif %}" class="team-shield-mini me-1">
                                                 <span class="team-name-col" title="{{ fila.equipo.nombre }}">{{ fila.equipo.nombre }}</span>
                                             </div>
                                         </td>
@@ -265,7 +351,7 @@
 
             <div class="col-lg-6">
                 <div class="card card-pro h-100 border-top border-4" style="border-top-color: #f59e0b !important;">
-                    <div class="bg-light text-center fw-black py-2 small text-uppercase" style="color: #d97706; letter-spacing: 1px;">GRUPO B (Pares)</div>
+                    <div class="bg-light text-center fw-black py-2 small text-uppercase" style="color: #d97706; letter-spacing: 1px;">GRUPO B</div>
                     <div class="card-body p-0">
                         <div class="table-responsive">
                             <table class="table table-hover table-compact text-center align-middle mb-0">
@@ -284,7 +370,7 @@
                                         <td class="text-start ps-1"><div class="rank-badge {% if forloop.counter <= 4 %}bg-dark text-white{% else %}rank-other{% endif %}">{{ forloop.counter }}</div></td>
                                         <td class="text-start fw-bold text-dark">
                                             <div class="d-flex align-items-center">
-                                                {% if fila.equipo.escudo %}<img src="{{ fila.equipo.escudo.url }}" class="team-shield-mini me-1">{% endif %}
+                                                <img src="{% if fila.equipo.escudo %}{{ fila.equipo.escudo.url }}{% else %}{% static 'img/default-shield.png' %}{% endif %}" class="team-shield-mini me-1">
                                                 <span class="team-name-col" title="{{ fila.equipo.nombre }}">{{ fila.equipo.nombre }}</span>
                                             </div>
                                         </td>
@@ -304,6 +390,9 @@
     {% endif %}
 
 
+    <!-- ========================================== -->
+    <!-- ESTADÍSTICAS EXTRA (GOLEADORES / TARJETAS) -->
+    <!-- ========================================== -->
     <div class="row g-3 mb-5">
         
         <div class="col-lg-5 print-col-5">
@@ -337,26 +426,28 @@
             
             <div class="card card-pro mb-3" style="border-left: 4px solid var(--accent-red);">
                 <div class="card-header-pro py-2 bg-white">
-                    <h6 class="mb-0 fw-bold text-danger" style="font-size: 0.85rem;"><i class="bi bi-exclamation-octagon-fill me-2"></i>Sanciones Activas (No Juegan)</h6>
+                    <h6 class="mb-0 fw-bold text-danger" style="font-size: 0.85rem;"><i class="bi bi-exclamation-octagon-fill me-2"></i>Sanciones Pendientes</h6>
                 </div>
                 <div class="card-body p-0 scroll-y-area" style="max-height: 160px;">
                     {% if sancionados_activos %}
                         {% for s in sancionados_activos %}
                         <div class="list-item-pro py-2">
                             <div class="flex-grow-1" style="min-width:0;">
-                                <div class="fw-bold text-dark text-truncate" style="font-size: 0.75rem;">{{ s.jugador.nombres }}</div>
+                                <div class="fw-bold text-dark text-truncate" style="font-size: 0.75rem;">
+                                    {% if s.jugador %}{{ s.jugador.nombres }}{% else %}Sanción al Equipo{% endif %}
+                                </div>
                                 <div class="d-flex align-items-center gap-2 mt-1">
-                                    <span class="text-muted text-truncate" style="font-size: 0.65rem;"><i class="bi bi-shield-fill me-1 opacity-50"></i>{{ s.jugador.equipo.nombre }}</span>
-                                    <span class="badge bg-warning bg-opacity-10 text-dark border border-warning" style="font-size: 0.6rem;">{{ s.motivo }}</span>
+                                    <span class="text-muted text-truncate" style="font-size: 0.65rem;"><i class="bi bi-shield-fill me-1 opacity-50"></i>{{ s.equipo.nombre }}</span>
+                                    <span class="badge bg-warning bg-opacity-10 text-dark border border-warning" style="font-size: 0.6rem;" title="{{ s.descripcion }}">{{ s.tipo }}</span>
                                 </div>
                             </div>
                             <div class="ms-2">
-                                <span class="badge bg-danger rounded-pill shadow-sm" style="font-size: 0.65rem;">{{ s.restantes }}</span>
+                                <span class="badge bg-danger rounded-pill shadow-sm" style="font-size: 0.7rem;">${{ s.monto }}</span>
                             </div>
                         </div>
                         {% endfor %}
                     {% else %}
-                        <div class="text-center py-3 text-muted"><i class="bi bi-check-circle text-success fs-5 d-block mb-1 opacity-50"></i><span style="font-size: 0.7rem; font-weight: bold;">Sin suspendidos actuales.</span></div>
+                        <div class="text-center py-3 text-muted"><i class="bi bi-check-circle text-success fs-5 d-block mb-1 opacity-50"></i><span style="font-size: 0.7rem; font-weight: bold;">Sin sanciones pendientes.</span></div>
                     {% endif %}
                 </div>
             </div>

@@ -224,6 +224,10 @@ class Partido(models.Model):
     numero_fecha = models.PositiveIntegerField(default=1)
     torneo = models.ForeignKey(Torneo, on_delete=models.CASCADE)
     etapa = models.CharField(max_length=5, choices=ETAPAS, default='F1')
+    
+    # 🔥 CAMPO CLAVE PARA LA SEGUNDA VUELTA
+    vuelta = models.IntegerField(default=1, verbose_name="Vuelta (1 o 2)")
+    
     cancha = models.CharField(max_length=100, default="Cancha Principal")
     
     equipo_local = models.ForeignKey(Equipo, related_name='local', on_delete=models.CASCADE)
@@ -236,7 +240,7 @@ class Partido(models.Model):
     estado = models.CharField(max_length=4, choices=ESTADOS, default='PROG')
     ganador_wo = models.ForeignKey(Equipo, null=True, blank=True, on_delete=models.SET_NULL)
 
-    # ✨ NUEVOS CAMPOS PARA PENALES
+    # ✨ CAMPOS PARA PENALES
     hubo_penales = models.BooleanField(default=False, verbose_name="¿Hubo Penales?")
     penales_local = models.PositiveIntegerField(default=0, blank=True, null=True)
     penales_visita = models.PositiveIntegerField(default=0, blank=True, null=True)
@@ -245,20 +249,22 @@ class Partido(models.Model):
         if self.equipo_local == self.equipo_visita:
             raise ValidationError("⛔ Un equipo no puede jugar contra sí mismo.")
 
+        # ✨ CORRECCIÓN VITAL AQUÍ: Filtramos también por la "vuelta"
         choque = Partido.objects.filter(
             torneo=self.torneo,
             etapa=self.etapa,
+            vuelta=self.vuelta  # <- Esto permite que jueguen en la vuelta 2 sin dar error
         ).filter(
             Q(equipo_local=self.equipo_local, equipo_visita=self.equipo_visita) |
             Q(equipo_local=self.equipo_visita, equipo_visita=self.equipo_local)
         ).exclude(id=self.id)
 
         if choque.exists():
-            raise ValidationError(f"⛔ El partido {self.equipo_local} vs {self.equipo_visita} YA EXISTE en la {self.get_etapa_display()}. No se pueden enfrentar 2 veces en la misma fase.")
+            raise ValidationError(f"⛔ El partido {self.equipo_local} vs {self.equipo_visita} YA EXISTE en la {self.get_etapa_display()} (Vuelta {self.vuelta}).")
 
     def __str__(self):
         return f"{self.equipo_local} vs {self.equipo_visita}"
-
+    
 # =====================================================
 # 8. DETALLE DEL PARTIDO Y SANCIONES
 # =====================================================

@@ -5,167 +5,163 @@
 
 {% block extra_css %}
 <style>
-    /* --- DISEÑO PRO-DENSITY 2026 (ULTRA COMPACTO) --- */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-
+    /* --- DISEÑO CLARO, CÁLIDO Y ESTÉTICO --- */
     :root {
-        --bg-body: #f1f5f9;
+        --bg-body: #f3f4f6;
         --bg-card: #ffffff;
-        --text-main: #0f172a;
-        --text-sec: #475569;
-        --border-light: #e2e8f0;
-        --accent-blue: #2563eb;
+        --text-main: #1f2937;
+        --text-sec: #6b7280;
+        --border-light: #e5e7eb;
+        
+        --accent-blue: #0284c7;
+        --accent-orange: #ea580c;
+        --accent-green: #16a34a;
         --accent-red: #dc2626;
-        --radius-card: 12px;
+        --radius-card: 14px;
     }
 
-    body { background-color: var(--bg-body); color: var(--text-main); font-family: 'Inter', sans-serif; }
+    body { background-color: var(--bg-body); color: var(--text-main); }
 
-    /* Inputs compactos */
     .form-control, .form-select {
-        background-color: var(--bg-card) !important; color: var(--text-main) !important;
-        border: 1px solid var(--border-light) !important; border-radius: 8px; font-weight: 600; padding: 6px 12px;
-        font-size: 0.85rem; box-shadow: none !important;
+        background-color: #f9fafb !important; color: var(--text-main) !important;
+        border: 1px solid #d1d5db !important; border-radius: 10px; font-weight: 600;
+        padding: 10px 15px; box-shadow: none !important; transition: all 0.2s;
     }
-    .form-control:focus, .form-select:focus { border-color: var(--accent-blue) !important; }
+    .form-control:focus, .form-select:focus { border-color: var(--accent-blue) !important; box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15) !important; }
 
-    /* Botones Superiores */
     .btn-dash {
-        border-radius: 8px; padding: 5px 12px; font-weight: 700; font-size: 0.7rem; text-transform: uppercase;
-        display: inline-flex; align-items: center; gap: 4px; text-decoration: none; border: 1px solid var(--border-light);
+        border-radius: 8px; padding: 6px 12px; font-weight: 800; font-size: 0.75rem;
+        display: inline-flex; align-items: center; gap: 6px; text-decoration: none; 
+        transition: all 0.2s; border: 1px solid transparent; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
-    .btn-fase1 { background: #ffffff; color: #1e293b; }
-    .btn-fase2 { background: #fffbeb; color: #92400e; border-color: #fde68a; }
-    .btn-stats { background: #eff6ff; color: #1e40af; border-color: #bfdbfe; }
+    .btn-fase1 { background: #ffffff; color: var(--accent-blue); border-color: #bae6fd; }
+    .btn-fase2 { background: #fff7ed; color: var(--accent-orange); border-color: #fed7aa; }
+    .btn-stats { background: #f0fdf4; color: var(--accent-green); border-color: #bbf7d0; }
 
-    /* --- SMART TOOLBAR COMPACTA --- */
     .smart-toolbar {
-        background: var(--bg-card); border-radius: 12px; padding: 10px 15px; margin-bottom: 15px;
+        background: var(--bg-card); border-radius: var(--radius-card); padding: 12px 15px; margin-bottom: 20px;
         display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between;
-        border: 1px solid var(--border-light);
+        border: 1px solid var(--border-light); box-shadow: 0 4px 6px rgba(0,0,0,0.02);
     }
     .search-box { position: relative; flex-grow: 1; max-width: 300px; }
-    .search-box input { padding-left: 32px; border-radius: 8px; font-size: 0.8rem; }
-    .search-box i { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-sec); font-size: 0.9rem; }
+    .search-box input { padding-left: 35px; border-radius: 8px; font-size: 0.85rem; padding-top: 8px; padding-bottom: 8px; }
+    .search-box i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-sec); font-size: 1rem; }
     
     .filter-pills { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
     .filter-pills::-webkit-scrollbar { height: 0px; }
     .pill { 
-        padding: 5px 12px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; 
-        color: var(--text-sec); background: #f8fafc; cursor: pointer; border: 1px solid var(--border-light); white-space: nowrap;
+        padding: 5px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 800; 
+        color: var(--text-sec); background: #f3f4f6; cursor: pointer; border: 1px solid #d1d5db; white-space: nowrap;
+        transition: all 0.2s;
     }
-    .pill:hover { background: #e2e8f0; color: var(--text-main); }
-    .pill.active { background: var(--text-main); color: #ffffff; border-color: var(--text-main); }
+    .pill.active { background: var(--accent-blue); color: #ffffff; border-color: var(--accent-blue); box-shadow: 0 2px 4px rgba(2, 132, 199, 0.2); }
+    /* Estilos especiales para los nuevos pills */
+    .pill.scheduled.active { background: #10b981; border-color: #059669; }
+    .pill.unscheduled.active { background: #f59e0b; border-color: #d97706; }
 
-    /* --- ACORDEONES MINIMALISTAS --- */
-    .fase-badge { font-weight: 800; font-size: 0.85rem; color: var(--text-sec); text-transform: uppercase; margin: 1rem 0 0.5rem 5px; }
-    .jornada-accordion { --bs-accordion-bg: transparent; --bs-accordion-border-width: 0; }
-    .accordion-item { background: transparent; border: none; margin-bottom: 15px; }
-    .accordion-button {
-        background: transparent !important; padding: 0 0 8px 0; box-shadow: none !important; color: var(--text-main) !important;
-        font-weight: 800; font-size: 0.8rem; text-transform: uppercase; border-bottom: 1px solid var(--border-light);
+    .phase-btn {
+        background: linear-gradient(135deg, #0ea5e9, #0284c7) !important; color: white !important;
+        font-weight: 900; font-size: 1.05rem; border-radius: 12px !important; padding: 12px 20px;
+        letter-spacing: 0.5px; box-shadow: 0 4px 10px rgba(2, 132, 199, 0.2) !important;
+        border: none !important;
     }
-    .accordion-button::after { transform: scale(0.7); }
-    .accordion-body { padding: 12px 0 0 0; background: transparent; }
+    .phase-btn::after { filter: brightness(0) invert(1); }
+    .phase-btn.collapsed { border-radius: 12px !important; box-shadow: 0 2px 5px rgba(0,0,0,0.1) !important; }
 
-    /* --- TARJETAS COMPACTAS DE PARTIDO (GRID) --- */
+    .jornada-accordion .accordion-button {
+        background: #ffffff !important; border-radius: 10px !important; box-shadow: 0 2px 4px rgba(0,0,0,0.02) !important;
+        font-weight: 800; font-size: 0.85rem; color: var(--text-main) !important; border: 1px solid var(--border-light); margin-bottom: 8px;
+        padding: 10px 15px;
+    }
+    .jornada-accordion .accordion-body { padding: 12px 0 0 0; background: transparent; }
+
     .match-card {
         background: var(--bg-card); border-radius: var(--radius-card); padding: 12px;
         border: 1px solid var(--border-light); height: 100%; display: flex; flex-direction: column;
-        transition: border-color 0.2s; position: relative;
+        transition: all 0.2s; box-shadow: 0 2px 8px rgba(0,0,0,0.03);
     }
-    .match-card:hover { border-color: #cbd5e1; box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
 
-    /* Header Compacto */
-    .mc-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px dashed var(--border-light); }
-    .mc-status { font-size: 0.6rem; font-weight: 800; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; }
-    .st-jug { background: #d1fae5; color: #065f46; }
-    .st-vivo { background: #fee2e2; color: #991b1b; animation: pulse 2s infinite; }
-    .st-prog { background: #e0f2fe; color: #1e40af; }
-    .st-acta { background: #fef3c7; color: #92400e; }
+    .mc-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px dashed #e5e7eb; }
+    .mc-status { font-size: 0.6rem; font-weight: 900; padding: 3px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .st-jug { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+    .st-vivo { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; animation: pulse 2s infinite; }
+    .st-prog { background: #f3f4f6; color: #4b5563; border: 1px solid #e5e7eb; }
+    .st-acta { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
     .st-wo { background: #f1f5f9; color: #475569; }
-    @keyframes pulse { 50% { opacity: 0.5; } }
+    @keyframes pulse { 50% { opacity: 0.6; } }
     
-    .mc-time { display: flex; align-items: center; gap: 8px; }
-    .mc-time .cancha { font-size: 0.65rem; color: var(--text-sec); font-weight: 600; max-width: 80px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .mc-time .hora { font-size: 0.7rem; font-weight: 800; color: var(--text-main); }
+    .mc-time { display: flex; align-items: center; gap: 6px; }
+    .mc-time .cancha { font-size: 0.65rem; color: var(--text-sec); font-weight: 700; max-width: 80px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mc-time .hora { font-size: 0.75rem; font-weight: 900; color: var(--accent-blue); background: #eff6ff; padding: 2px 6px; border-radius: 4px; }
+    .mc-time .hora.empty { color: #d97706; background: #fef3c7; border: 1px dashed #fcd34d; }
 
-    /* Cuerpo Horizontal Estricto (Ahorra espacio vertical) */
-    .mc-body { display: flex; align-items: center; justify-content: space-between; gap: 5px; flex-grow: 1; margin-bottom: 10px; }
-    
+    .mc-body { display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-grow: 1; margin-bottom: 10px; }
     .mc-team { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
     .mc-team.t-local { justify-content: flex-end; }
     .mc-team.t-away { justify-content: flex-start; }
     
-    .mc-name { font-weight: 700; font-size: 0.75rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .mc-crest { width: 28px; height: 28px; object-fit: contain; flex-shrink: 0; }
+    .mc-name { font-weight: 800; font-size: 0.75rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mc-crest { width: 30px; height: 30px; object-fit: contain; flex-shrink: 0; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1)); }
     
     .mc-score-wrap { flex: 0 0 50px; text-align: center; }
-    .mc-score { font-size: 1rem; font-weight: 800; color: var(--text-main); background: #f1f5f9; padding: 2px 6px; border-radius: 6px; letter-spacing: 1px; }
-    .mc-vs { font-size: 0.7rem; font-weight: 800; color: var(--text-sec); }
+    .mc-score { font-size: 1.1rem; font-weight: 900; color: var(--text-main); background: #f9fafb; padding: 2px 6px; border-radius: 6px; border: 1px solid #e5e7eb; }
+    .mc-vs { font-size: 0.75rem; font-weight: 900; color: #9ca3af; }
 
-    /* Footer de Botones Pequeños */
-    .mc-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid var(--border-light); }
-    
+    .mc-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid #f3f4f6; }
     .vocal-actions { display: flex; gap: 4px; flex-grow: 1; }
     .btn-action { 
-        padding: 4px 8px; border-radius: 6px; font-weight: 700; font-size: 0.65rem; 
+        padding: 5px 8px; border-radius: 6px; font-weight: 800; font-size: 0.65rem; 
         text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 4px; 
-        border: 1px solid var(--border-light); width: 100%; color: var(--text-main); background: #f8fafc;
+        border: 1px solid transparent; width: 100%; transition: all 0.2s;
     }
-    .btn-action:hover { background: #e2e8f0; }
     .btn-action.pdf { color: #dc2626; border-color: #fecaca; background: #fef2f2; }
-    .btn-action.primary { color: #2563eb; border-color: #bfdbfe; background: #eff6ff; }
-    .btn-action.warning { color: #d97706; border-color: #fde68a; background: #fffbeb; }
+    .btn-action.view { color: #4b5563; border-color: #d1d5db; background: #ffffff; }
+    .btn-action.start { color: #ffffff; background: var(--accent-green); }
+    .btn-action.complete { color: #92400e; border-color: #fde68a; background: #fffbeb; }
 
     .admin-actions { display: flex; gap: 4px; margin-left: 8px; }
     .btn-admin { 
-        width: 24px; height: 24px; border-radius: 6px; background: transparent; color: var(--text-sec);
-        display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 0.75rem; border: 1px solid var(--border-light);
+        width: 26px; height: 26px; border-radius: 6px; background: #f3f4f6; color: #6b7280;
+        display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 0.75rem; border: 1px solid #e5e7eb; 
     }
-    .btn-admin:hover { background: #e2e8f0; color: var(--text-main); }
-    .btn-admin.danger:hover { background: #fee2e2; color: var(--accent-red); border-color: #fecaca; }
 
-    /* --- MOBILE OPTIMIZATION (Ultra Denso) --- */
     @media (max-width: 768px) {
         .smart-toolbar { padding: 10px; }
         .search-box { max-width: 100%; }
-        
-        .match-card { padding: 10px; }
-        .mc-name { font-size: 0.7rem; } /* Letra un poco más pequeña para que entren nombres largos */
-        .mc-score { font-size: 0.9rem; padding: 2px 4px; }
-        .mc-crest { width: 24px; height: 24px; }
-        
-        /* En móvil, garantizamos que el layout horizontal no se rompa */
-        .mc-body { gap: 4px; }
+        .match-card { padding: 10px; border-radius: 12px; }
+        .mc-name { font-size: 0.7rem; } 
+        .mc-crest { width: 26px; height: 26px; }
         .mc-score-wrap { flex: 0 0 45px; }
+        .mc-score { font-size: 1rem; padding: 2px 4px; }
+        .btn-action { font-size: 0.6rem; padding: 6px; }
+        .phase-btn { font-size: 0.95rem; padding: 10px 15px; }
+        .jornada-accordion .accordion-button { padding: 8px 12px; font-size: 0.8rem; }
     }
 </style>
 {% endblock %}
 
 {% block contenido %}
-<!-- Header Minimalista -->
+<!-- Header -->
 <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 animate__animated animate__fadeInDown">
     <div>
-        <h4 class="fw-black m-0 text-dark" style="letter-spacing: -0.5px;">Calendario de Partidos</h4>
+        <h4 class="fw-black m-0 text-dark" style="letter-spacing: -0.5px;">Calendario Oficial</h4>
     </div>
     
     <div class="mt-2 mt-md-0 d-flex flex-wrap gap-2">
         {% if torneo_actual %}
-            <a href="{% url 'tabla_posiciones' torneo_actual %}" class="btn-dash btn-fase1"><i class="bi bi-list-ol"></i> Fase 1</a>
-            <a href="{% url 'tabla_posiciones_f2' torneo_actual %}" class="btn-dash btn-fase2"><i class="bi bi-diagram-2-fill"></i> Fase 2</a>
-            <a href="{% url 'reporte_estadisticas' torneo_actual %}" class="btn-dash btn-stats"><i class="bi bi-bar-chart-fill"></i> Récords</a>
+            <a href="{% url 'tabla_posiciones' torneo_actual %}" class="btn-dash btn-fase1"><i class="bi bi-list-ol"></i> Tablas Fase 1</a>
+            <a href="{% url 'tabla_posiciones_f2' torneo_actual %}" class="btn-dash btn-fase2"><i class="bi bi-diagram-2-fill"></i> Grupos Fase 2</a>
         {% endif %}
     </div>
 </div>
 
-<!-- Selector de Torneo Compacto -->
+<!-- Selector de Torneo -->
 <div class="mb-3 animate__animated animate__fadeIn">
     <form method="GET" class="m-0">
-        <select name="torneo" class="form-select fw-bold shadow-sm" onchange="this.form.submit()">
-            <option value="">-- Selecciona un Torneo --</option>
+        <select name="torneo" class="form-select fw-bold shadow-sm" onchange="this.form.submit()" style="font-size: 0.9rem;">
+            <option value="">-- Selecciona el Torneo a Gestionar --</option>
             {% for t in torneos %}
-                <option value="{{ t.id }}" {% if torneo_actual == t.id %}selected{% endif %}>{{ t.nombre }}</option>
+                <option value="{{ t.id }}" {% if torneo_actual == t.id %}selected{% endif %}>🏆 {{ t.nombre }}</option>
             {% endfor %}
         </select>
     </form>
@@ -173,7 +169,7 @@
 
 {% if torneo_actual %}
 
-    <!-- 🌟 SMART TOOLBAR COMPACTA 🌟 -->
+    <!-- 🌟 SMART TOOLBAR CON NUEVOS FILTROS -->
     <div class="smart-toolbar animate__animated animate__fadeInUp">
         <div class="search-box">
             <i class="bi bi-search"></i>
@@ -182,19 +178,23 @@
         
         <div class="filter-pills">
             <div class="pill active" data-filter="all" onclick="setFilter(this, 'all')">Todos</div>
-            <div class="pill" data-filter="pending" onclick="setFilter(this, 'pending')">Por Jugar</div>
-            <div class="pill" data-filter="live" onclick="setFilter(this, 'live')"><span class="text-danger me-1">●</span>En Vivo/Acta</div>
+            
+            <!-- 🔥 NUEVOS FILTROS DE PROGRAMACIÓN -->
+            <div class="pill scheduled" data-filter="scheduled" onclick="setFilter(this, 'scheduled')"><i class="bi bi-calendar-check me-1"></i>Con Hora</div>
+            <div class="pill unscheduled" data-filter="unscheduled" onclick="setFilter(this, 'unscheduled')"><i class="bi bi-clock-history me-1"></i>Sin Asignar</div>
+            
+            <div class="pill" data-filter="live" onclick="setFilter(this, 'live')"><span class="text-danger me-1">●</span>Vivo/Mesa</div>
             <div class="pill" data-filter="finished" onclick="setFilter(this, 'finished')">Terminados</div>
         </div>
     </div>
 
-    <!-- AGENDAR PARTIDO (ORG) -->
+    <!-- AGENDAR PARTIDO MANUAL (ORG) -->
     {% if request.user.perfil.rol == 'ORG' %}
-    <div class="card border-0 mb-3" style="background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border-light) !important;">
-        <div class="p-2 px-3 d-flex justify-content-between align-items-center border-bottom border-light">
-            <span class="fw-bold text-dark" style="font-size: 0.75rem;"><i class="bi bi-calendar-plus text-primary me-1"></i>Nuevo Partido</span>
-            <a href="{% url 'generar_fixture' torneo_actual %}" class="btn-dash btn-fase1" style="font-size: 0.65rem;">
-                <i class="bi bi-magic"></i> Auto-Fixture
+    <div class="card border-0 mb-4 shadow-sm" style="background: var(--bg-card); border-radius: 14px; border: 1px solid var(--border-light) !important;">
+        <div class="p-2 px-3 d-flex justify-content-between align-items-center border-bottom border-light bg-light" style="border-radius: 14px 14px 0 0;">
+            <span class="fw-black text-dark" style="font-size: 0.8rem;"><i class="bi bi-calendar-plus text-primary me-2"></i>Agendar Manual</span>
+            <a href="{% url 'generar_fixture' torneo_actual %}" class="btn-dash btn-fase1 border shadow-sm">
+                <i class="bi bi-magic text-warning"></i> Auto-Fixture
             </a>
         </div>
         <div class="card-body p-2 px-3">
@@ -205,13 +205,13 @@
                     {% for field in form %}
                         {% if field.name != 'torneo' %}
                         <div class="col-md-2 col-6">
-                            <label class="form-label text-muted fw-bold mb-1" style="font-size: 0.55rem; text-transform: uppercase;">{{ field.label }}</label>
+                            <label class="form-label text-muted fw-bold mb-1" style="font-size: 0.6rem; text-transform: uppercase;">{{ field.label }}</label>
                             {{ field }}
                         </div>
                         {% endif %}
                     {% endfor %}
                     <div class="col-md-2 col-12 mt-2 mt-md-0">
-                        <button type="submit" class="btn btn-sm btn-dark w-100 fw-bold" style="border-radius: 6px;">Guardar</button>
+                        <button type="submit" class="btn btn-dark w-100 fw-bold shadow-sm" style="border-radius: 8px; padding: 7px; font-size: 0.85rem;">Guardar</button>
                     </div>
                 </div>
             </form>
@@ -219,114 +219,133 @@
     </div>
     {% endif %}
 
-    <!-- CONTENEDOR DE GRID -->
-    <div id="calendar-container">
+    <!-- CONTENEDOR DE PARTIDOS (DOBLE ACORDEÓN) -->
+    <div id="calendar-container" class="accordion">
         {% regroup partidos by get_etapa_display as fases_agrupadas %}
         
         {% for fase in fases_agrupadas %}
-            <div class="fase-wrapper">
-                <div class="fase-badge">{{ fase.grouper }}</div>
-
-                {% regroup fase.list by numero_fecha as jornadas_agrupadas %}
+            <!-- ACORDEÓN DE FASE -->
+            <div class="accordion-item border-0 bg-transparent mb-4 fase-wrapper search-fase">
+                <h2 class="accordion-header" id="heading-fase-{{ forloop.counter }}">
+                    <button class="accordion-button phase-btn shadow-sm" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-fase-{{ forloop.counter }}" aria-expanded="true">
+                        <i class="bi bi-trophy-fill text-warning me-2"></i> {{ fase.grouper }}
+                        <span class="badge bg-white text-primary ms-3 rounded-pill" style="font-size: 0.7rem;">{{ fase.list|length }} Partidos</span>
+                    </button>
+                </h2>
                 
-                <div class="accordion jornada-accordion" id="accFase{{ forloop.counter }}">
-                    {% for jornada in jornadas_agrupadas %}
-                    <div class="accordion-item search-jornada">
-                        <h2 class="accordion-header" id="h-f{{ forloop.parentloop.counter }}-j{{ forloop.counter }}">
-                            <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#c-f{{ forloop.parentloop.counter }}-j{{ forloop.counter }}">
-                                Jornada {{ jornada.grouper|default:"-" }}
-                                <span class="ms-2 text-muted fw-normal" style="font-size: 0.7rem; text-transform: none;">({{ jornada.list|length }} partidos)</span>
-                            </button>
-                        </h2>
+                <div id="collapse-fase-{{ forloop.counter }}" class="accordion-collapse collapse show fase-collapse" data-bs-parent="#calendar-container">
+                    <div class="accordion-body px-0 pt-3">
                         
-                        <div id="c-f{{ forloop.parentloop.counter }}-j{{ forloop.counter }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" data-bs-parent="#accFase{{ forloop.parentloop.counter }}">
-                            <div class="accordion-body">
+                        <!-- ACORDEÓN DE JORNADAS -->
+                        {% regroup fase.list by numero_fecha as jornadas_agrupadas %}
+                        <div class="accordion jornada-accordion" id="accFase{{ forloop.counter }}">
+                            {% for jornada in jornadas_agrupadas %}
+                            <div class="accordion-item search-jornada border-0 bg-transparent">
+                                <h2 class="accordion-header" id="h-f{{ forloop.parentloop.counter }}-j{{ forloop.counter }}">
+                                    <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#c-f{{ forloop.parentloop.counter }}-j{{ forloop.counter }}">
+                                        Jornada {{ jornada.grouper|default:"-" }}
+                                    </button>
+                                </h2>
                                 
-                                <!-- 🌟 GRID SÚPER DENSO 🌟 -->
-                                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-2">
-                                    {% for p in jornada.list %}
-                                    <div class="col search-match" data-teams="{{ p.equipo_local.nombre|lower }} {{ p.equipo_visita.nombre|lower }}" data-status="{{ p.estado|lower }}">
-                                        <div class="match-card">
-                                            
-                                            <!-- HEADER COMPACTO -->
-                                            <div class="mc-header">
-                                                <div class="mc-status st-{{ p.estado|lower }}">{{ p.get_estado_display }}</div>
-                                                <div class="mc-time">
-                                                    <span class="cancha"><i class="bi bi-geo-alt me-1"></i>{{ p.cancha|default:"Cancha" }}</span>
-                                                    <span class="hora">{% if p.fecha_hora %}{{ p.fecha_hora|date:"d M H:i" }}{% else %}--:--{% endif %}</span>
+                                <div id="c-f{{ forloop.parentloop.counter }}-j{{ forloop.counter }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %} jornada-collapse" data-bs-parent="#accFase{{ forloop.parentloop.counter }}">
+                                    <div class="accordion-body">
+                                        
+                                        <!-- GRID ULTRA COMPACTO DE PARTIDOS -->
+                                        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-2">
+                                            {% for p in jornada.list %}
+                                            <!-- 🔥 AQUÍ ESTÁ LA INTELIGENCIA: Agregamos data-hastime -->
+                                            <div class="col search-match" data-teams="{{ p.equipo_local.nombre|lower }} {{ p.equipo_visita.nombre|lower }}" data-status="{{ p.estado|lower }}" data-hastime="{% if p.fecha_hora %}true{% else %}false{% endif %}">
+                                                <div class="match-card">
+                                                    
+                                                    <!-- HEADER COMPACTO -->
+                                                    <div class="mc-header">
+                                                        <div class="d-flex align-items-center gap-2">
+                                                            <div class="mc-status st-{{ p.estado|lower }}">{{ p.get_estado_display }}</div>
+                                                            {% if p.etapa == 'F1' and p.vuelta == 1 %}
+                                                                <span class="badge bg-secondary text-white" style="font-size: 0.55rem; letter-spacing: 0.5px;">IDA</span>
+                                                            {% elif p.etapa == 'F1' and p.vuelta == 2 %}
+                                                                <span class="badge" style="font-size: 0.55rem; letter-spacing: 0.5px; background-color: #8b5cf6; color: white;">REVANCHA</span>
+                                                            {% endif %}
+                                                        </div>
+                                                        <div class="mc-time">
+                                                            <span class="cancha"><i class="bi bi-geo-alt-fill text-danger me-1"></i>{{ p.cancha|default:"-" }}</span>
+                                                            <!-- 🔥 DISEÑO PARA CUANDO NO HAY HORA ASIGNADA -->
+                                                            {% if p.fecha_hora %}
+                                                                <span class="hora"><i class="bi bi-clock-fill me-1"></i>{{ p.fecha_hora|date:"d M H:i" }}</span>
+                                                            {% else %}
+                                                                <span class="hora empty"><i class="bi bi-exclamation-circle-fill me-1"></i>Sin Asignar</span>
+                                                            {% endif %}
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- CUERPO HORIZONTAL -->
+                                                    <div class="mc-body">
+                                                        <div class="mc-team t-local">
+                                                            <span class="mc-name" title="{{ p.equipo_local.nombre }}">{{ p.equipo_local.nombre }}</span>
+                                                            <img src="{% if p.equipo_local.escudo %}{{ p.equipo_local.escudo.url }}{% else %}{% static 'img/default-shield.png' %}{% endif %}" class="mc-crest">
+                                                        </div>
+                                                        
+                                                        <div class="mc-score-wrap">
+                                                            {% if p.estado == 'JUG' or p.estado == 'FINALIZADO' or p.estado == 'VIVO' or p.estado == 'WO' %}
+                                                                <div class="mc-score">{{ p.goles_local }}-{{ p.goles_visita }}</div>
+                                                            {% else %}
+                                                                <div class="mc-vs">VS</div>
+                                                            {% endif %}
+                                                        </div>
+
+                                                        <div class="mc-team t-away">
+                                                            <img src="{% if p.equipo_visita.escudo %}{{ p.equipo_visita.escudo.url }}{% else %}{% static 'img/default-shield.png' %}{% endif %}" class="mc-crest">
+                                                            <span class="mc-name" title="{{ p.equipo_visita.nombre }}">{{ p.equipo_visita.nombre }}</span>
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- FOOTER -->
+                                                    <div class="mc-footer">
+                                                        <div class="vocal-actions">
+                                                            {% if p.estado == 'JUG' or p.estado == 'WO' %}
+                                                                <a href="{% url 'generar_acta_pdf' p.id %}" target="_blank" class="btn-action pdf"><i class="bi bi-file-pdf-fill"></i> PDF</a>
+                                                                <a href="{% url 'gestionar_vocalia' p.id %}" class="btn-action view"><i class="bi bi-eye-fill"></i> Detalles</a>
+                                                            {% elif p.estado == 'ACTA' %}
+                                                                <a href="{% url 'gestionar_vocalia' p.id %}" class="btn-action complete"><i class="bi bi-pencil-square"></i> Firmar</a>
+                                                            {% elif p.estado == 'VIVO' or p.estado == 'PROG' %}
+                                                                <a href="{% url 'gestionar_vocalia' p.id %}" class="btn-action start"><i class="bi bi-play-circle-fill"></i> A la Mesa</a>
+                                                            {% endif %}
+                                                        </div>
+
+                                                        {% if request.user.perfil.rol == 'ORG' %}
+                                                        <div class="admin-actions">
+                                                            <!-- Destacamos el botón de editar si falta la hora -->
+                                                            <a href="{% url 'editar_partido' p.id %}" class="btn-admin {% if not p.fecha_hora %}bg-warning bg-opacity-25 text-warning border-warning border-opacity-50{% endif %}"><i class="bi bi-pencil"></i></a>
+                                                            <a href="{% url 'eliminar_partido' p.id %}" onclick="return confirm('¿ELIMINAR partido?');" class="btn-admin danger"><i class="bi bi-trash"></i></a>
+                                                        </div>
+                                                        {% endif %}
+                                                    </div>
+
                                                 </div>
                                             </div>
-
-                                            <!-- CUERPO HORIZONTAL ESTRICTO -->
-                                            <div class="mc-body">
-                                                <!-- Team 1 -->
-                                                <div class="mc-team t-local">
-                                                    <span class="mc-name" title="{{ p.equipo_local.nombre }}">{{ p.equipo_local.nombre }}</span>
-                                                    <img src="{% if p.equipo_local.escudo %}{{ p.equipo_local.escudo.url }}{% else %}{% static 'img/default-shield.png' %}{% endif %}" class="mc-crest">
-                                                </div>
-                                                
-                                                <!-- Score -->
-                                                <div class="mc-score-wrap">
-                                                    {% if p.estado == 'JUG' or p.estado == 'FINALIZADO' or p.estado == 'VIVO' or p.estado == 'WO' %}
-                                                        <div class="mc-score">{{ p.goles_local }}-{{ p.goles_visita }}</div>
-                                                    {% else %}
-                                                        <div class="mc-vs">VS</div>
-                                                    {% endif %}
-                                                </div>
-
-                                                <!-- Team 2 -->
-                                                <div class="mc-team t-away">
-                                                    <img src="{% if p.equipo_visita.escudo %}{{ p.equipo_visita.escudo.url }}{% else %}{% static 'img/default-shield.png' %}{% endif %}" class="mc-crest">
-                                                    <span class="mc-name" title="{{ p.equipo_visita.nombre }}">{{ p.equipo_visita.nombre }}</span>
-                                                </div>
-                                            </div>
-
-                                            <!-- FOOTER COMPACTO -->
-                                            <div class="mc-footer">
-                                                <!-- Vocales -->
-                                                <div class="vocal-actions">
-                                                    {% if p.estado == 'JUG' or p.estado == 'WO' %}
-                                                        <a href="{% url 'generar_acta_pdf' p.id %}" target="_blank" class="btn-action pdf" title="Acta PDF"><i class="bi bi-file-pdf"></i> Acta</a>
-                                                        <a href="{% url 'gestionar_vocalia' p.id %}" class="btn-action"><i class="bi bi-bar-chart"></i> Stats</a>
-                                                    {% elif p.estado == 'ACTA' %}
-                                                        <a href="{% url 'gestionar_vocalia' p.id %}" class="btn-action warning"><i class="bi bi-pen-fill"></i> Completar</a>
-                                                    {% elif p.estado == 'VIVO' or p.estado == 'PROG' %}
-                                                        <a href="{% url 'gestionar_vocalia' p.id %}" class="btn-action primary"><i class="bi bi-play-fill"></i> Iniciar</a>
-                                                    {% endif %}
-                                                </div>
-
-                                                <!-- Admin (ORG) -->
-                                                {% if request.user.perfil.rol == 'ORG' %}
-                                                <div class="admin-actions">
-                                                    <a href="{% url 'editar_partido' p.id %}" class="btn-admin" title="Editar"><i class="bi bi-pencil"></i></a>
-                                                    <a href="{% url 'reiniciar_partido' p.id %}" onclick="return confirm('¿Resetear a 0?');" class="btn-admin" title="Reset"><i class="bi bi-arrow-counterclockwise"></i></a>
-                                                    <a href="{% url 'eliminar_partido' p.id %}" onclick="return confirm('¿ELIMINAR permanentemente?');" class="btn-admin danger" title="Eliminar"><i class="bi bi-trash"></i></a>
-                                                </div>
-                                                {% endif %}
-                                            </div>
-
+                                            {% endfor %}
                                         </div>
-                                    </div>
-                                    {% endfor %}
-                                </div>
 
+                                    </div>
+                                </div>
                             </div>
+                            {% endfor %}
                         </div>
+
                     </div>
-                    {% endfor %}
                 </div>
             </div>
         {% empty %}
-            <div class="text-center py-4 mt-3 bg-white rounded-3 border">
-                <i class="bi bi-calendar-x text-muted opacity-25 d-block mb-2" style="font-size: 2.5rem;"></i>
-                <h6 class="fw-bold text-dark m-0">Calendario Vacío</h6>
+            <div class="text-center py-5 mt-3 bg-white rounded-4 border shadow-sm">
+                <i class="bi bi-calendar-x text-muted opacity-25 d-block mb-3" style="font-size: 3rem;"></i>
+                <h6 class="fw-black text-dark m-0">Calendario Vacío</h6>
             </div>
         {% endfor %}
 
         <!-- Mensaje Búsqueda Vacía -->
-        <div id="no-results-msg" class="text-center py-4 mt-3 bg-white rounded-3 border" style="display: none;">
-            <i class="bi bi-search text-muted opacity-25 d-block mb-2" style="font-size: 2.5rem;"></i>
-            <h6 class="fw-bold text-dark m-0">Sin resultados</h6>
+        <div id="no-results-msg" class="text-center py-5 mt-3 bg-white rounded-4 border shadow-sm" style="display: none;">
+            <i class="bi bi-search text-muted opacity-25 d-block mb-3" style="font-size: 3rem;"></i>
+            <h6 class="fw-black text-dark m-0">No se encontraron partidos</h6>
         </div>
     </div>
 
@@ -350,13 +369,23 @@
         matchColumns.forEach(col => {
             const teams = col.getAttribute('data-teams');
             const status = col.getAttribute('data-status');
+            const hasTime = col.getAttribute('data-hastime'); // Leemos si tiene hora
             let showBySearch = teams.includes(searchTerm);
             let showByStatus = false;
 
-            if (currentFilter === 'all') showByStatus = true;
-            else if (currentFilter === 'pending' && ['prog'].includes(status)) showByStatus = true;
-            else if (currentFilter === 'live' && ['vivo', 'acta'].includes(status)) showByStatus = true;
-            else if (currentFilter === 'finished' && ['jug', 'finalizado', 'wo'].includes(status)) showByStatus = true;
+            if (currentFilter === 'all') {
+                showByStatus = true;
+            } else if (currentFilter === 'scheduled') {
+                // Solo Programados que SÍ tienen hora
+                if (status === 'prog' && hasTime === 'true') showByStatus = true;
+            } else if (currentFilter === 'unscheduled') {
+                // Solo Programados que NO tienen hora
+                if (status === 'prog' && hasTime === 'false') showByStatus = true;
+            } else if (currentFilter === 'live') {
+                if (['vivo', 'acta'].includes(status)) showByStatus = true;
+            } else if (currentFilter === 'finished') {
+                if (['jug', 'finalizado', 'wo'].includes(status)) showByStatus = true;
+            }
 
             if (showBySearch && showByStatus) {
                 col.style.display = 'block'; 
@@ -366,16 +395,19 @@
             }
         });
 
+        // Manejo Inteligente de Acordeones
         document.querySelectorAll('.search-jornada').forEach(jornada => {
             const visibleMatches = Array.from(jornada.querySelectorAll('.search-match')).filter(el => el.style.display !== 'none');
             jornada.style.display = visibleMatches.length ? 'block' : 'none';
             
-            if (searchTerm.length > 0 && visibleMatches.length > 0) {
-                jornada.querySelector('.accordion-collapse').classList.add('show');
+            // Si hay filtro activo, abrimos las carpetas
+            if ((searchTerm.length > 0 || currentFilter !== 'all') && visibleMatches.length > 0) {
+                jornada.querySelector('.jornada-collapse').classList.add('show');
+                jornada.closest('.fase-collapse').classList.add('show');
             }
         });
 
-        document.querySelectorAll('.fase-wrapper').forEach(fase => {
+        document.querySelectorAll('.search-fase').forEach(fase => {
             const visibleJornadas = Array.from(fase.querySelectorAll('.search-jornada')).filter(el => el.style.display !== 'none');
             fase.style.display = visibleJornadas.length ? 'block' : 'none';
         });
