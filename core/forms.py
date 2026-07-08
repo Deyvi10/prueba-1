@@ -6,9 +6,9 @@ from django.core.exceptions import ValidationError
 from .models import ReservaCancha, Cupon
 from .models import HorarioCancha
 from .models import FotoGaleria, Publicidad
-
-# Importamos requests para la validación del correo
+from .models import Configuracion
 import requests
+from .models import Sancion
 
 # =====================================================
 # 1. CREAR USUARIOS
@@ -36,56 +36,61 @@ class RegistroUsuarioForm(UserCreationForm):
 class TorneoForm(forms.ModelForm):
     class Meta:
         model = Torneo
-        # ✨ ELIMINAMOS 'fecha_fin' DE ESTA LISTA
+        # 🧹 COMPLETAMENTE LIMPIO DE "CATEGORIA"
         fields = [
             'nombre', 
+            'categoria', 
             'fecha_inicio', 
             'inscripcion_abierta', 
             'activo', 
             'costo_inscripcion', 
+            'cobro_por_jugador', 
+            'costo_inscripcion_jugador',
             'costo_amarilla', 
             'costo_roja'
         ]
         widgets = {
             'fecha_inicio': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'nombre': forms.TextInput(attrs={'class': 'form-control'}),
+            'categoria': forms.Select(attrs={'class': 'form-select'}),
             'costo_inscripcion': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'costo_inscripcion_jugador': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'costo_amarilla': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'costo_roja': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'cobro_por_jugador': forms.CheckboxInput(attrs={'class': 'form-check-input fs-4 shadow-sm border-secondary', 'role': 'switch'}),
         }
+        labels = {
+            'cobro_por_jugador': '¿Cobrar tarifa individual por Jugador?',
+        }
+
 # =====================================================
 # 3. CREAR EQUIPOS 
 # =====================================================
-
-
 class EquipoSolicitudForm(forms.ModelForm):
     class Meta:
         model = Equipo
-        fields = ['nombre', 'escudo', 'nombre_suplente_1', 'nombre_suplente_2'] # SIN CAMPOS DE ADMIN
+        fields = ['nombre', 'escudo', 'nombre_suplente_1', 'nombre_suplente_2'] 
         widgets = {
             'nombre': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: Los Rayados FC'}),
             'escudo': forms.FileInput(attrs={'class': 'form-control'}),
             'nombre_suplente_1': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre del Suplente 1 (Opcional)'}),
             'nombre_suplente_2': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre del Suplente 2 (Opcional)'}),
-            'telefono_contacto': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: 0964049283', 'required': 'True'}),   
+            'telefono_contacto': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: 0963395614', 'required': 'True'}),   
         }
-
         
 class EquipoForm(forms.ModelForm):
     class Meta:
         model = Equipo
-        fields = ['nombre', 'escudo', 'nombre_suplente_1', 'nombre_suplente_2', 'estado_inscripcion', 'puede_fichar']
+        fields = ['torneo', 'nombre', 'escudo', 'telefono_contacto', 'nombre_suplente_1', 'nombre_suplente_2', 'estado_inscripcion']
         widgets = {
             'nombre': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: Los Rayados FC'}),
             'escudo': forms.FileInput(attrs={'class': 'form-control'}),
             'nombre_suplente_1': forms.TextInput(attrs={'class': 'form-control'}),
             'nombre_suplente_2': forms.TextInput(attrs={'class': 'form-control'}),
             'estado_inscripcion': forms.Select(attrs={'class': 'form-select fw-bold border-secondary'}),
-            'puede_fichar': forms.CheckboxInput(attrs={'class': 'form-check-input fs-4 shadow-sm border-secondary', 'role': 'switch'}),
         }
         labels = {
             'estado_inscripcion': 'Estado en el Torneo',
-            'puede_fichar': '🟢 ¿Permitir que este equipo fiche jugadores?'
         }
 
 class JugadorForm(forms.ModelForm):
@@ -100,15 +105,31 @@ class JugadorForm(forms.ModelForm):
             'foto': forms.FileInput(attrs={'class': 'form-control bg-dark text-white border-secondary'}),
         }
 
+    def clean_cedula(self):
+        cedula = self.cleaned_data.get('cedula')
+        equipo_destino = self.cleaned_data.get('equipo')
+        
+        if equipo_destino and equipo_destino.torneo:
+            torneo_actual = equipo_destino.torneo
+            
+            # 🔥 BLOQUEO INTELIGENTE: Verifica si la cédula ya existe en OTRO equipo del MISMO TORNEO
+            jugador_existente = Jugador.objects.filter(
+                cedula=cedula,
+                equipo__torneo=torneo_actual
+            ).exclude(equipo=equipo_destino).first()
+            
+            if jugador_existente:
+                raise forms.ValidationError(f"⛔ Fichaje bloqueado: Este jugador ya pertenece a '{jugador_existente.equipo.nombre}' en este torneo. Solo el organizador puede traspasarlo.")
+                
+        return cedula
+
 # =====================================================
 # 5. PROGRAMAR PARTIDOS
 # =====================================================
 class ProgramarPartidoForm(forms.ModelForm):
     class Meta:
         model = Partido
-        # Agregamos 'numero_fecha' para poder agrupar por Jornadas
         fields = ['torneo', 'numero_fecha', 'etapa', 'equipo_local', 'equipo_visita', 'fecha_hora', 'cancha']
-        
         widgets = {
             'torneo': forms.Select(attrs={'class': 'form-select bg-dark text-white border-secondary'}),
             'numero_fecha': forms.NumberInput(attrs={'class': 'form-control bg-dark text-white border-secondary', 'placeholder': 'Ej: 1', 'min': '1'}),
@@ -118,7 +139,6 @@ class ProgramarPartidoForm(forms.ModelForm):
             'fecha_hora': forms.DateTimeInput(attrs={'class': 'form-control bg-dark text-white border-secondary', 'type': 'datetime-local'}),
             'cancha': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary', 'placeholder': 'Ej: Cancha Principal'}),
         }
-        
         labels = {
             'numero_fecha': 'Jornada N°',
             'equipo_local': 'Equipo A (Local)',
@@ -127,19 +147,13 @@ class ProgramarPartidoForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
-        # Usamos .get() para evitar errores si el campo viene vacío
         local = cleaned_data.get("equipo_local")
         visita = cleaned_data.get("equipo_visita")
 
-        # 1. VALIDACIÓN: Mismo equipo
         if local and visita and local == visita:
-            # Esto agrega el error ESPECÍFICAMENTE al campo, para que salga rojo y con mensaje
             self.add_error('equipo_visita', "⛔ ERROR: Un equipo no puede jugar contra sí mismo.")
             self.add_error('equipo_local', "⛔ Selecciona equipos diferentes.")
-            
-            # Y esto lanza un error general por si acaso
             raise forms.ValidationError("Error de Lógica: El partido no puede ser entre el mismo equipo.")
-        
         return cleaned_data
     
 
@@ -149,30 +163,13 @@ class ProgramarPartidoForm(forms.ModelForm):
 class PagoForm(forms.ModelForm):
     class Meta:
         model = Pago
-    
         fields = ['equipo', 'monto', 'fecha', 'comprobante', 'observacion']
-        
         widgets = {
-            
-            'equipo': forms.Select(attrs={
-                'class': 'form-select bg-white text-dark border-secondary-subtle'
-            }),
-            'monto': forms.NumberInput(attrs={
-                'class': 'form-control bg-white text-dark border-secondary-subtle', 
-                'placeholder': '0.00'
-            }),
-            'fecha': forms.DateInput(attrs={
-                'class': 'form-control bg-white text-dark border-secondary-subtle', 
-                'type': 'date'
-            }),
-            'comprobante': forms.FileInput(attrs={
-                'class': 'form-control bg-white text-dark border-secondary-subtle'
-            }),
-            'observacion': forms.Textarea(attrs={
-                'class': 'form-control bg-white text-dark border-secondary-subtle', 
-                'rows': 2, 
-                'placeholder': 'Ej: Abono inscripción / Pago de multa fecha 3'
-            }),
+            'equipo': forms.Select(attrs={'class': 'form-select bg-white text-dark border-secondary-subtle'}),
+            'monto': forms.NumberInput(attrs={'class': 'form-control bg-white text-dark border-secondary-subtle', 'placeholder': '0.00'}),
+            'fecha': forms.DateInput(attrs={'class': 'form-control bg-white text-dark border-secondary-subtle', 'type': 'date'}),
+            'comprobante': forms.FileInput(attrs={'class': 'form-control bg-white text-dark border-secondary-subtle'}),
+            'observacion': forms.Textarea(attrs={'class': 'form-control bg-white text-dark border-secondary-subtle', 'rows': 2, 'placeholder': 'Ej: Abono inscripción / Pago de multa fecha 3'}),
         }
         labels = {
             'equipo': 'Equipo que realiza el pago',
@@ -186,25 +183,15 @@ class PagoForm(forms.ModelForm):
         monto = cleaned_data.get('monto')
         equipo = cleaned_data.get('equipo')
 
-        # 1. Validamos que el monto no sea nulo para empezar
         if monto is not None:
-            
-            # 2. VALIDACIÓN: No aceptar negativos ni ceros
             if monto <= 0:
-                self.add_error('monto', "El monto debe ser mayor a $0. No se permiten valores negativos o nulos.")
-            
-            # 3. VALIDACIÓN DE NEGOCIO: No pagar más de la deuda real
+                self.add_error('monto', "El monto debe ser mayor a $0. No se permiten negativos.")
             elif equipo:
                 deuda_actual = equipo.deuda_pendiente()
-                
-                # Caso: Equipo ya no debe nada
                 if deuda_actual <= 0:
-                    self.add_error('equipo', f"El equipo {equipo.nombre} ya se encuentra al día con sus pagos.")
-                
-                # Caso: Intenta pagar más de lo que debe
+                    self.add_error('equipo', f"El equipo {equipo.nombre} ya está al día.")
                 elif monto > deuda_actual:
-                    self.add_error('monto', f"Operación denegada: El equipo solo adeuda ${deuda_actual}. No puedes registrar un pago por ${monto}.")
-
+                    self.add_error('monto', f"Denegado: Solo adeuda ${deuda_actual}. No puedes cobrar ${monto}.")
         return cleaned_data
 
 class RegistroPublicoForm(UserCreationForm):
@@ -220,61 +207,22 @@ class RegistroPublicoForm(UserCreationForm):
             'username': forms.TextInput(attrs={'class': 'form-control'}),
         }
 
-    def clean_email(self):
-        email = self.cleaned_data.get('email')
-        
-        if not email:
-            return email
-
-        # ✨ MAGIA DE VALIDACIÓN DE CORREO REAL (API) ✨
-        # Reemplaza "TU_CLAVE_API_AQUI" por tu API Key de AbstractAPI
-        api_key = "TU_CLAVE_API_AQUI"
-        url = f"https://emailvalidation.abstractapi.com/v1/?api_key={api_key}&email={email}"
-        
-        try:
-            # Ponemos un timeout de 3 segundos para que la página no se quede congelada si la API tarda
-            respuesta = requests.get(url, timeout=3)
-            
-            if respuesta.status_code == 200:
-                datos = respuesta.json()
-                
-                # Si el correo va a rebotar (es inventado)
-                if datos.get('deliverability') == "UNDELIVERABLE":
-                    raise ValidationError("Este correo electrónico no existe o es falso. Usa uno real.")
-                
-                # Bloqueo extra: Rechazar correos temporales (opcional)
-                if datos.get('is_disposable_email', {}).get('value') == True:
-                    raise ValidationError("No se permiten direcciones de correo temporales.")
-                    
-        except requests.exceptions.RequestException:
-            # Si falla el internet o la API, dejamos pasar el registro para no bloquear a los usuarios
-            pass
-            
-        return email
-
     def save(self, commit=True):
-        # 1. Guardamos el usuario (Esto dispara la señal automática si existe)
         user = super().save(commit=True)
-
-        # 2. Manejo Seguro del Perfil
-        # Intentamos obtener el perfil si la señal ya lo creó.
         if hasattr(user, 'perfil'):
             perfil = user.perfil
         else:
             perfil = Perfil.objects.create(usuario=user)
         
-        # 3. Actualizamos los datos extra
         perfil.telefono = self.cleaned_data.get('telefono')
-        perfil.rol = 'FAN'  # Rol por defecto para gente de internet
+        perfil.rol = 'FAN' 
         perfil.save()
         
-        # 4. Actualizar datos del usuario base
         user.first_name = self.cleaned_data['first_name']
         user.last_name = self.cleaned_data['last_name']
         user.email = self.cleaned_data['email']
         if commit:
             user.save()
-            
         return user
     
 class ReservaCanchaForm(forms.ModelForm):
@@ -291,23 +239,6 @@ class ReservaCanchaForm(forms.ModelForm):
             'hora_fin': forms.TimeInput(attrs={'type': 'time', 'class': 'form-control'}),
         }
 
-    def clean(self):
-        cleaned_data = super().clean()
-        codigo = cleaned_data.get('codigo_cupon')
-        
-        # Validar Cupón si escribieron algo
-        if codigo:
-            try:
-                cupon = Cupon.objects.get(codigo=codigo)
-                if not cupon.es_valido():
-                    self.add_error('codigo_cupon', 'Este cupón ha expirado o ya no es válido.')
-                # Guardamos el objeto cupón en "cleaned_data" para usarlo en la vista
-                cleaned_data['objeto_cupon'] = cupon
-            except Cupon.DoesNotExist:
-                self.add_error('codigo_cupon', 'Código de cupón incorrecto.')
-        
-        return cleaned_data
-
 class HorarioCanchaForm(forms.ModelForm):
     class Meta:
         model = HorarioCancha
@@ -318,30 +249,6 @@ class HorarioCanchaForm(forms.ModelForm):
             'precio': forms.NumberInput(attrs={'step': '0.50', 'class': 'form-control', 'placeholder': 'Ej: 5.00'}),
             'activo': forms.CheckboxInput(attrs={'class': 'form-check-input'})
         }
-
-    def clean(self):
-        cleaned_data = super().clean()
-        inicio = cleaned_data.get('hora_inicio')
-        fin = cleaned_data.get('hora_fin')
-
-        if inicio and fin:
-            if inicio >= fin:
-                raise ValidationError("La hora de inicio debe ser más temprano que la hora de fin.")
-
-            # 🛡️ ESCUDO ANTI-CHOQUES: Verifica si la hora se cruza con una que ya existe
-            cruces = HorarioCancha.objects.filter(
-                hora_inicio__lt=fin,
-                hora_fin__gt=inicio
-            )
-            
-            if self.instance and self.instance.pk:
-                cruces = cruces.exclude(pk=self.instance.pk)
-
-            if cruces.exists():
-                raise ValidationError("⛔ Ya tienes otra tarifa configurada en este horario. Revisa los cruces.")
-
-        return cleaned_data
-    
 
 class FotoGaleriaForm(forms.ModelForm):
     class Meta:
@@ -355,30 +262,103 @@ class FotoGaleriaForm(forms.ModelForm):
         }
 
 class PublicidadForm(forms.ModelForm):
-    # Cambiamos el campo a Texto normal para que el navegador no te obligue a escribir "http://"
     enlace = forms.CharField(
         required=False,
         label="Número de WhatsApp o Link",
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: 0991234567 o un link a Facebook'})
     )
-
     class Meta:
         model = Publicidad
         fields = ['imagen', 'empresa', 'enlace', 'activa']
+
+# =====================================================
+# ✨ NUEVOS FORMULARIOS: TRASPASOS, CUPOS Y SANCIONES ✨
+# =====================================================
+
+class TraspasoJugadorForm(forms.Form):
+    nuevo_equipo = forms.ModelChoiceField(
+        queryset=Equipo.objects.none(), 
+        label="Seleccionar Nuevo Equipo",
+        empty_label="-- Elija el equipo de destino --"
+    )
+    nuevo_dorsal = forms.IntegerField(
+        label="Nuevo Dorsal",
+        min_value=0,
+        widget=forms.NumberInput(attrs={'class': 'form-control form-control-lg fw-bold text-center', 'placeholder': 'Ej: 10'})
+    )
+
+    def __init__(self, *args, **kwargs):
+        torneo_id = kwargs.pop('torneo_id', None)
+        equipo_actual_id = kwargs.pop('equipo_actual_id', None)
+        super().__init__(*args, **kwargs)
         
-    def clean_enlace(self):
-        enlace = self.cleaned_data.get('enlace')
-        
-        if enlace:
-            enlace = enlace.strip().replace(" ", "") # Quitamos espacios por si acaso
-            
-            # ✨ LA MAGIA: Si escribiste exactamente 10 números y empieza con '0'
-            if enlace.isdigit() and len(enlace) == 10 and enlace.startswith('0'):
-                numero_limpio = enlace[1:] # Le quitamos el primer '0'
-                return f"https://wa.me/593{numero_limpio}"
-            
-            # Si pegaste un link normal pero olvidaste el http://
-            elif not enlace.startswith('http://') and not enlace.startswith('https://'):
-                return f"https://{enlace}"
+        if torneo_id and equipo_actual_id:
+            # 🛡️ Solo filtramos por equipos del MISMO torneo que estén aprobados
+            equipos_validos = Equipo.objects.filter(
+                torneo_id=torneo_id, 
+                estado_inscripcion='APROBADO'
+            ).exclude(id=equipo_actual_id)
                 
-        return enlace
+            self.fields['nuevo_equipo'].queryset = equipos_validos
+            self.fields['nuevo_equipo'].widget.attrs.update({'class': 'form-select form-select-lg fw-bold'})
+
+    def clean(self):
+        cleaned_data = super().clean()
+        nuevo_equipo = cleaned_data.get('nuevo_equipo')
+        nuevo_dorsal = cleaned_data.get('nuevo_dorsal')
+
+        if nuevo_equipo and nuevo_dorsal is not None:
+            from .models import Jugador
+            if Jugador.objects.filter(equipo=nuevo_equipo, dorsal=nuevo_dorsal).exists():
+                self.add_error('nuevo_dorsal', f'El equipo {nuevo_equipo.nombre} ya tiene un jugador con el dorsal {nuevo_dorsal}.')
+        
+        return cleaned_data
+    
+class AsignarCuposForm(forms.ModelForm):
+    class Meta:
+        model = Equipo
+        fields = ['cupos_pagados']
+        labels = {
+            'cupos_pagados': 'Límite Total de Jugadores'
+        }
+        widgets = {
+            'cupos_pagados': forms.NumberInput(attrs={
+                'class': 'form-control form-control-lg fw-black text-center',
+                'style': 'font-size: 3rem; height: 100px; border-radius: 20px; border: 3px solid var(--primary-blue);',
+                'min': '0'
+            })
+        }
+
+class SancionListaNegraForm(forms.ModelForm):
+    class Meta:
+        model = Equipo
+        fields = ['sancionado_hasta']
+        widgets = {
+            'sancionado_hasta': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
+        }
+        labels = {
+            'sancionado_hasta': 'Sancionar (Lista Negra) Hasta:'
+        }
+
+class ConfiguracionForm(forms.ModelForm):
+    class Meta:
+        model = Configuracion
+        fields = ['logo_sistema', 'iva_porcentaje', 'precio_hora_cancha']
+        widgets = {
+            'logo_sistema': forms.FileInput(attrs={'class': 'form-control'}),
+        }
+
+class SancionManualForm(forms.ModelForm):
+    class Meta:
+        model = Sancion
+        fields = ['torneo', 'equipo', 'monto', 'descripcion']
+        widgets = {
+            'torneo': forms.Select(attrs={'class': 'form-select bg-dark text-white border-secondary', 'required': True}),
+            'equipo': forms.Select(attrs={'class': 'form-select bg-dark text-white border-secondary', 'required': True}),
+            'monto': forms.NumberInput(attrs={'class': 'form-control bg-dark text-white border-secondary', 'step': '0.01', 'placeholder': 'Ej: 15.00', 'required': True}),
+            'descripcion': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary', 'placeholder': 'Ej: Multa por daños, Falta a reunión, etc.', 'required': True}),
+        }
+        labels = {
+            'monto': 'Monto de la Deuda ($)',
+            'descripcion': 'Motivo / Detalle de la Deuda'
+        }

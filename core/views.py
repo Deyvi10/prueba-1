@@ -2,8 +2,9 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
-from django.db.models import Sum, Q, Count, F, Case, When, IntegerField
+from django.db.models import Count, Q, Sum, F
 from django.template.loader import get_template
+from django.core.paginator import Paginator
 from django.db import transaction 
 from xhtml2pdf import pisa 
 from django.contrib.auth.models import User
@@ -14,6 +15,8 @@ from urllib.parse import quote
 import urllib.parse
 from decimal import Decimal
 from django.contrib.auth import login
+from .forms import ConfiguracionForm
+
 
 # Importamos Modelos y Formularios Unificados
 from .models import (
@@ -25,7 +28,8 @@ from .forms import (
     RegistroUsuarioForm, TorneoForm, EquipoForm, JugadorForm, 
     ProgramarPartidoForm, PagoForm, RegistroPublicoForm,
     ReservaCanchaForm, EquipoSolicitudForm, HorarioCanchaForm,
-    FotoGaleriaForm, PublicidadForm
+    FotoGaleriaForm, PublicidadForm,
+    TraspasoJugadorForm, AsignarCuposForm, SancionListaNegraForm, SancionManualForm
 )
 from .utils import validar_cedula_ecuador, consultar_sri
 
@@ -82,9 +86,13 @@ def dashboard(request):
             
             reservas_pendientes = ReservaCancha.objects.filter(estado='PENDIENTE').select_related('usuario').order_by('fecha', 'hora_inicio')
             
+            # 👇 AÑADIDO PARA EL CENTRO DE SOLICITUDES 👇
+            equipos_pendientes = Equipo.objects.filter(estado_inscripcion='PENDIENTE')
+            
             ctx['deudas'] = deudas_pendientes
             ctx['total_por_cobrar'] = total + saldo_inscripciones 
             ctx['reservas_pendientes'] = reservas_pendientes 
+            ctx['equipos_pendientes'] = equipos_pendientes 
 
         elif rol == 'DIR':
             mis_equipos = Equipo.objects.filter(dirigente=request.user)
@@ -147,7 +155,7 @@ def gestionar_usuarios(request):
 @login_required
 @user_passes_test(es_organizador)
 def gestionar_torneos(request):
-    torneos = Torneo.objects.all().order_by('-id') 
+    torneos = Torneo.objects.all().order_by('categoria__nombre', '-fecha_inicio')
     if request.method == 'POST':
         form = TorneoForm(request.POST)
         if form.is_valid():
@@ -196,26 +204,57 @@ def eliminar_torneo(request, torneo_id):
 @login_required
 @user_passes_test(es_organizador)
 def gestionar_equipos(request):
-    equipos = Equipo.objects.all().select_related('torneo', 'dirigente')
+    # 🔥 1. Filtramos SOLO torneos activos y ORDENAMOS para que la agrupación funcione perfecto
+    equipos = Equipo.objects.filter(torneo__activo=True).select_related(
+        'torneo', 'torneo__categoria', 'dirigente'
+    ).order_by('torneo__categoria__nombre', 'torneo__nombre', 'nombre')
+    
     if request.method == 'POST':
         form = EquipoForm(request.POST, request.FILES)
         if form.is_valid():
             nuevo_equipo = form.save()
-            costo_inscripcion = getattr(nuevo_equipo.torneo, 'precio_inscripcion', Decimal('50.00')) 
-            Sancion.objects.create(
-                torneo=nuevo_equipo.torneo,
-                equipo=nuevo_equipo,
-                tipo='ADMIN',
-                monto=costo_inscripcion,
-                monto_pagado=Decimal('0.00'),
-                descripcion=f"Inscripción al Torneo {nuevo_equipo.torneo.nombre}",
-                pagada=False
-            )
-            messages.success(request, '¡Equipo inscrito y cuenta de inscripción generada!')
+            if not nuevo_equipo.torneo.cobro_por_jugador:
+                costo_inscripcion = getattr(nuevo_equipo.torneo, 'costo_inscripcion', Decimal('0.00')) 
+                Sancion.objects.create(
+                    torneo=nuevo_equipo.torneo,
+                    equipo=nuevo_equipo,
+                    tipo='ADMIN',
+                    monto=costo_inscripcion,
+                    monto_pagado=Decimal('0.00'),
+                    descripcion=f"Inscripción al Torneo {nuevo_equipo.torneo.nombre}",
+                    pagada=False
+                )
+            messages.success(request, '¡Equipo inscrito correctamente!')
             return redirect('gestionar_equipos')
     else:
         form = EquipoForm()
+        
+    # 🔥 2. Limitamos el formulario para que solo se puedan inscribir en torneos activos
+    form.fields['torneo'].queryset = Torneo.objects.filter(activo=True).order_by('categoria__nombre', 'nombre')
+        
     return render(request, 'core/gestionar_equipos.html', {'form': form, 'equipos': equipos})
+
+@login_required
+@user_passes_test(es_organizador)
+def editar_equipo(request, equipo_id):
+    equipo = get_object_or_404(Equipo, id=equipo_id)
+    if request.method == 'POST':
+        form = EquipoForm(request.POST, request.FILES, instance=equipo)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Equipo actualizado correctamente.')
+            return redirect('gestionar_equipos')
+    else:
+        form = EquipoForm(instance=equipo)
+        
+    form.fields['torneo'].queryset = Torneo.objects.filter(activo=True).order_by('categoria__nombre', 'nombre')
+    
+    equipos = Equipo.objects.filter(torneo__activo=True).select_related(
+        'torneo', 'torneo__categoria', 'dirigente'
+    ).order_by('torneo__categoria__nombre', 'torneo__nombre', 'nombre')
+    
+    return render(request, 'core/gestionar_equipos.html', {'form': form, 'equipos': equipos, 'editando': True})
+
 
 @login_required
 @user_passes_test(es_organizador)
@@ -236,8 +275,13 @@ def editar_equipo(request, equipo_id):
 def eliminar_equipo(request, equipo_id):
     equipo = get_object_or_404(Equipo, id=equipo_id)
     equipo.delete()
-    messages.success(request, 'Equipo eliminado.')
+    messages.success(request, 'Equipo eliminado. Los jugadores quedaron libres.')
     return redirect('gestionar_equipos')
+
+
+# =========================================================
+# ✨ LÓGICA BLINDADA: GESTIÓN DE JUGADORES Y CUPOS ✨
+# =========================================================
 
 @login_required
 def gestionar_jugadores(request):
@@ -250,55 +294,93 @@ def gestionar_jugadores(request):
             messages.error(request, 'No tienes un equipo inscrito. Inscríbete a un torneo primero.')
             return redirect('ver_torneos_activos')
 
+        equipos_activos = mis_equipos.filter(torneo__activo=True).order_by('torneo__categoria__nombre', 'torneo__nombre', 'nombre')
         equipo_id = request.GET.get('equipo')
-        if equipo_id:
-            mi_equipo = mis_equipos.filter(id=equipo_id).first()
-            if not mi_equipo:
-                mi_equipo = mis_equipos.first()
-        else:
-            mi_equipo = mis_equipos.first() 
-
+        mi_equipo = mis_equipos.filter(id=equipo_id).first() if equipo_id else (equipos_activos.first() or mis_equipos.first())
+        
         jugadores = Jugador.objects.filter(equipo=mi_equipo).order_by('dorsal')
-        equipos = mis_equipos
         equipo_seleccionado = mi_equipo.id
-        puede_fichar = mi_equipo.puede_fichar 
+        
+        if mi_equipo.esta_sancionado:
+            puede_fichar = False
+            messages.error(request, f'⛔ TU EQUIPO ESTÁ SANCIONADO HASTA {mi_equipo.sancionado_hasta}.')
+        else:
+            puede_fichar = mi_equipo.puede_fichar
         
         if request.method == 'POST':
             if not puede_fichar:
-                messages.error(request, '⛔ Fichajes cerrados. El organizador no ha habilitado la inscripción para tu equipo.')
-                return redirect('gestionar_jugadores')
+                messages.error(request, '⛔ Fichajes cerrados o límite alcanzado.')
+                return redirect(f"{request.path}?equipo={mi_equipo.id}")
                 
             form = JugadorForm(request.POST, request.FILES)
             form.fields['equipo'].queryset = mis_equipos 
             
             if form.is_valid():
-                jugador = form.save(commit=False)
-                # MAGIA DE REFUERZOS AUTOMÁTICOS
-                fase2_iniciada = Partido.objects.filter(
-                    torneo=jugador.equipo.torneo, 
-                    etapa__in=['F2', '4TOS', 'SEMI', 'TERC', 'FINAL']
-                ).exists()
-                if fase2_iniciada:
-                    jugador.es_refuerzo = True
-                jugador.save()
+                cedula_ingresada = form.cleaned_data.get('cedula')
                 
-                etiqueta = "(COMO REFUERZO) ⚡" if jugador.es_refuerzo else ""
-                messages.success(request, f'¡{jugador.nombres} fichado en {jugador.equipo.nombre} {etiqueta}!')
-                return redirect(f"{request.path}?equipo={jugador.equipo.id}")
+                # 1. Buscamos TODAS las fichas activas de esa cédula
+                jugadores_activos_bd = Jugador.objects.filter(cedula=cedula_ingresada, equipo__torneo__activo=True)
+                
+                # 2. ¿Ya juega en ESTA MISMA CATEGORÍA?
+                misma_categoria = None
+                if mi_equipo.torneo.categoria:
+                    misma_categoria = jugadores_activos_bd.filter(equipo__torneo__categoria=mi_equipo.torneo.categoria).first()
+                else:
+                    misma_categoria = jugadores_activos_bd.filter(equipo__torneo=mi_equipo.torneo).first()
+
+                if misma_categoria:
+                    if misma_categoria.equipo != mi_equipo:
+                        # 🔒 EL CANDADO: Bloquea si ya juega en la MISMA categoría pero en OTRO equipo
+                        messages.error(request, f"⛔ ¡ALERTA! Este jugador ya compite en el equipo '{misma_categoria.equipo.nombre}' en esta misma categoría.")
+                        return redirect(f"{request.path}?equipo={mi_equipo.id}")
+                    else:
+                        # 🔄 Está actualizando la foto/dorsal de su propio jugador
+                        misma_categoria.nombres = form.cleaned_data.get('nombres')
+                        misma_categoria.dorsal = form.cleaned_data.get('dorsal')
+                        if form.cleaned_data.get('foto'):
+                            misma_categoria.foto = form.cleaned_data.get('foto')
+                        misma_categoria.save()
+                        messages.success(request, f'¡Datos de {misma_categoria.nombres} actualizados!')
+                else:
+                    # 🟢 NO JUEGA EN ESTA CATEGORÍA (Se permite inscribir en Múltiples Categorías)
+                    jugador_historial = Jugador.objects.filter(cedula=cedula_ingresada).last()
+                    nuevo_jugador = form.save(commit=False)
+                    nuevo_jugador.equipo = mi_equipo
+                    
+                    if jugador_historial:
+                        # Heredar foto si no subió una nueva
+                        if not form.cleaned_data.get('foto') and jugador_historial.foto:
+                            nuevo_jugador.foto = jugador_historial.foto
+                        
+                        # Limpiar castigos porque es una categoría completamente nueva
+                        nuevo_jugador.rojas_directas_acumuladas = 0
+                        nuevo_jugador.partidos_suspension = 0
+                        nuevo_jugador.expulsado_torneo = False
+                        nuevo_jugador.sancionado_hasta = None
+
+                    nuevo_jugador.save()
+                    
+                    if jugador_historial:
+                        messages.success(request, f'¡{nuevo_jugador.nombres} fichado! (Ahora compite en múltiples categorías)')
+                    else:
+                        messages.success(request, f'¡{nuevo_jugador.nombres} fichado exitosamente!')
+                        
+                return redirect(f"{request.path}?equipo={mi_equipo.id}")
             else:
-                for campo, errores in form.errors.items():
-                    for error in errores:
-                        messages.error(request, f"❌ Error: {error}")
+                messages.error(request, "❌ Error en el formulario.")
         else:
             form = JugadorForm(initial={'equipo': mi_equipo})
             form.fields['equipo'].queryset = mis_equipos 
 
     elif perfil.rol == 'ORG':
-        equipos = Equipo.objects.all()
+        # Lógica para Organizador
+        equipos_activos = Equipo.objects.filter(torneo__activo=True).order_by('torneo__categoria__nombre', 'torneo__nombre', 'nombre')
         equipo_id = request.GET.get('equipo')
-        if equipo_id:
-            jugadores = Jugador.objects.filter(equipo_id=equipo_id).order_by('dorsal')
-            equipo_seleccionado = int(equipo_id)
+        mi_equipo = Equipo.objects.filter(id=equipo_id).first() if equipo_id else equipos_activos.first()
+            
+        if mi_equipo:
+            jugadores = Jugador.objects.filter(equipo=mi_equipo).order_by('dorsal')
+            equipo_seleccionado = mi_equipo.id
         else:
             jugadores = Jugador.objects.none()
             equipo_seleccionado = None
@@ -306,50 +388,94 @@ def gestionar_jugadores(request):
         if request.method == 'POST':
             form = JugadorForm(request.POST, request.FILES)
             if form.is_valid():
-                nuevo_jugador = form.save(commit=False)
-                # MAGIA DE REFUERZOS AUTOMÁTICOS
-                fase2_iniciada = Partido.objects.filter(
-                    torneo=nuevo_jugador.equipo.torneo, 
-                    etapa__in=['F2', '4TOS', 'SEMI', 'TERC', 'FINAL']
-                ).exists()
-                if fase2_iniciada:
-                    nuevo_jugador.es_refuerzo = True
-                nuevo_jugador.save()
+                cedula_ingresada = form.cleaned_data.get('cedula')
+                equipo_destino = form.cleaned_data.get('equipo')
                 
-                etiqueta = "como REFUERZO " if nuevo_jugador.es_refuerzo else ""
-                messages.success(request, f'Jugador {nuevo_jugador.nombres} registrado {etiqueta}por Administración.')
+                jugadores_activos_bd = Jugador.objects.filter(cedula=cedula_ingresada, equipo__torneo__activo=True)
+                misma_categoria = None
+                if equipo_destino.torneo.categoria:
+                    misma_categoria = jugadores_activos_bd.filter(equipo__torneo__categoria=equipo_destino.torneo.categoria).first()
+                else:
+                    misma_categoria = jugadores_activos_bd.filter(equipo__torneo=equipo_destino.torneo).first()
+
+                if misma_categoria and misma_categoria.equipo != equipo_destino:
+                    messages.error(request, f"⛔ ¡ALERTA! El jugador ya compite en '{misma_categoria.equipo.nombre}' en esa categoría.")
+                else:
+                    if misma_categoria and misma_categoria.equipo == equipo_destino:
+                        misma_categoria.nombres = form.cleaned_data.get('nombres')
+                        misma_categoria.dorsal = form.cleaned_data.get('dorsal')
+                        if form.cleaned_data.get('foto'):
+                            misma_categoria.foto = form.cleaned_data.get('foto')
+                        misma_categoria.save()
+                        messages.success(request, 'Jugador actualizado.')
+                    else:
+                        jugador_historial = Jugador.objects.filter(cedula=cedula_ingresada).last()
+                        nuevo_jugador = form.save(commit=False)
+                        if jugador_historial and not nuevo_jugador.foto and jugador_historial.foto:
+                            nuevo_jugador.foto = jugador_historial.foto
+                            nuevo_jugador.rojas_directas_acumuladas = 0
+                            nuevo_jugador.partidos_suspension = 0
+                            nuevo_jugador.expulsado_torneo = False
+                        nuevo_jugador.save()
+                        messages.success(request, 'Jugador registrado en nueva categoría por Administración.')
+                        
                 return redirect(f"{request.path}?equipo={form.cleaned_data['equipo'].id}")
-            else:
-                for campo, errores in form.errors.items():
-                    for error in errores:
-                        messages.error(request, f"❌ Error: {error}")
         else:
             form = JugadorForm()
     else:
         messages.error(request, "Acceso denegado.")
         return redirect('dashboard')
 
+    # 🔥 MAGIA VISUAL: Anexamos los otros equipos en los que juega esta persona
+    if jugadores:
+        for j in jugadores:
+            j.otros_equipos = Jugador.objects.filter(
+                cedula=j.cedula,
+                equipo__torneo__activo=True
+            ).exclude(id=j.id)
+
     return render(request, 'core/gestionar_jugadores.html', {
-        'form': form, 'jugadores': jugadores, 'equipos': equipos,
+        'form': form, 'jugadores': jugadores, 
+        'equipos_activos': equipos_activos if perfil.rol == 'ORG' else mis_equipos.filter(torneo__activo=True).order_by('torneo__categoria__nombre', 'torneo__nombre', 'nombre'), 
         'equipo_seleccionado': equipo_seleccionado, 'es_dirigente': (perfil.rol == 'DIR'),
-        'puede_fichar': puede_fichar 
+        'puede_fichar': puede_fichar,
+        'equipo_obj': mi_equipo 
     })
 
 @login_required
-@user_passes_test(es_organizador)
 def editar_jugador(request, jugador_id):
     jugador = get_object_or_404(Jugador, id=jugador_id)
+    
+    # 1. REGLA ESTRICTA: Solo el Organizador puede editar a un jugador ya inscrito
+    if request.user.perfil.rol != 'ORG':
+        messages.error(request, "⛔ Solo el Organizador puede editar los datos de un jugador ya inscrito.")
+        return redirect(f"/jugadores/?equipo={jugador.equipo.id}")
+
     if request.method == 'POST':
+        # Al pasar instance=jugador actualiza sin borrar historial
         form = JugadorForm(request.POST, request.FILES, instance=jugador)
+        
         if form.is_valid():
             form.save()
-            messages.success(request, 'Jugador actualizado.')
+            messages.success(request, f'✅ Datos de {jugador.nombres} actualizados correctamente.')
             return redirect(f"/jugadores/?equipo={jugador.equipo.id}")
+        else:
+            messages.error(request, "❌ Revisa los campos del formulario.")
     else:
         form = JugadorForm(instance=jugador)
+
+    # Necesitamos enviar todos los equipos activos para que el filtro de la izquierda siga funcionando
+    equipos_activos = Equipo.objects.filter(torneo__activo=True).order_by('torneo__categoria__nombre', 'torneo__nombre', 'nombre')
+
     return render(request, 'core/gestionar_jugadores.html', {
-        'form': form, 'jugadores': Jugador.objects.filter(equipo=jugador.equipo), 
-        'equipos': Equipo.objects.all(), 'editando': True
+        'form': form, 
+        'jugadores': Jugador.objects.filter(equipo=jugador.equipo).order_by('dorsal'), 
+        'equipos_activos': equipos_activos, 
+        'editando': True, 
+        'es_dirigente': False, # Es falso porque ya validamos arriba que solo entra el ORG
+        'equipo_seleccionado': jugador.equipo.id,
+        'equipo_obj': jugador.equipo, # 🔥 LA CLAVE: Esto hace que aparezca el formulario a la derecha
+        'puede_fichar': True # Mantiene el botón desbloqueado para el Organizador
     })
 
 @login_required
@@ -373,6 +499,108 @@ def eliminar_jugador(request, jugador_id):
     if es_admin: return redirect('admin_gestion_jugadores')
     else: return redirect('gestionar_jugadores')
 
+
+# =========================================================
+# ✨ NUEVO: TRASPASOS, CUPOS Y SANCIONES (ORGANIZADOR) ✨
+# =========================================================
+
+@login_required
+@user_passes_test(es_organizador)
+def traspasar_jugador(request, jugador_id):
+    jugador = get_object_or_404(Jugador, id=jugador_id)
+    
+    if request.method == 'POST':
+        form = TraspasoJugadorForm(
+            request.POST, 
+            torneo_id=jugador.equipo.torneo.id, 
+            equipo_actual_id=jugador.equipo.id
+        )
+        if form.is_valid():
+            nuevo_equipo = form.cleaned_data['nuevo_equipo']
+            nuevo_dorsal = form.cleaned_data['nuevo_dorsal']
+            
+            jugador.equipo = nuevo_equipo
+            jugador.dorsal = nuevo_dorsal
+            jugador.rojas_directas_acumuladas = 0
+            jugador.partidos_suspension = 0
+            jugador.expulsado_torneo = False
+            jugador.sancionado_hasta = None
+            jugador.save()
+            
+            messages.success(request, f'✅ ¡Traspaso Exitoso! {jugador.nombres} pasó a {nuevo_equipo.nombre} (Dorsal {nuevo_dorsal}).')
+            return redirect('admin_gestion_jugadores')
+    else:
+        form = TraspasoJugadorForm(
+            torneo_id=jugador.equipo.torneo.id, 
+            equipo_actual_id=jugador.equipo.id
+        )
+        
+    return render(request, 'core/traspasar_jugador.html', {'form': form, 'jugador': jugador})
+
+@login_required
+@user_passes_test(es_organizador)
+def asignar_cupos(request, equipo_id):
+    equipo = get_object_or_404(Equipo, id=equipo_id)
+    cupos_anteriores = equipo.cupos_pagados # 🧠 Guardamos cuántos tenía antes de que los edites
+
+    if request.method == 'POST':
+        form = AsignarCuposForm(request.POST, instance=equipo)
+        if form.is_valid():
+            equipo_actualizado = form.save(commit=False)
+            nuevos_cupos = equipo_actualizado.cupos_pagados
+            
+            # Calculamos la diferencia
+            diferencia = nuevos_cupos - cupos_anteriores
+            equipo_actualizado.save()
+            
+            # Si la diferencia es positiva, aumentaste cupos -> Facturamos
+            if diferencia > 0 and equipo.torneo.cobro_por_jugador:
+                costo_adicional = diferencia * equipo.torneo.costo_inscripcion_jugador
+                Sancion.objects.create(
+                    torneo=equipo.torneo, equipo=equipo, tipo='ADMIN',
+                    monto=costo_adicional, descripcion=f"Ampliación: {diferencia} cupo(s) extra", pagada=False
+                )
+                messages.success(request, f'✅ Límite ampliado a {nuevos_cupos} cupos. Se generó factura por ${costo_adicional}.')
+            
+            # Si la diferencia es negativa, estabas corrigiendo un error -> Solo reducimos el límite
+            elif diferencia < 0:
+                messages.warning(request, f'⚠️ Límite corregido y reducido a {nuevos_cupos} cupos. (Revisa Finanzas si necesitas anular cobros incorrectos previos).')
+            
+            else:
+                messages.info(request, "No se hicieron cambios en el número de cupos.")
+                
+            return redirect('gestionar_equipos')
+    else:
+        # Carga el formulario con el número exacto que tiene actualmente
+        form = AsignarCuposForm(instance=equipo)
+        
+    return render(request, 'core/asignar_cupos.html', {'form': form, 'equipo': equipo})
+
+@login_required
+@user_passes_test(es_organizador)
+def sancionar_equipo(request, equipo_id):
+    equipo = get_object_or_404(Equipo, id=equipo_id)
+    if request.method == 'POST':
+        form = SancionListaNegraForm(request.POST, instance=equipo)
+        if form.is_valid():
+            equipo = form.save()
+            if equipo.sancionado_hasta:
+                # Aplicamos la sanción a todos
+                equipo.dirigente.perfil.sancionado_hasta = equipo.sancionado_hasta
+                equipo.dirigente.perfil.save()
+                Jugador.objects.filter(equipo=equipo).update(sancionado_hasta=equipo.sancionado_hasta)
+                messages.error(request, f'🚨 EQUIPO SANCIONADO: {equipo.nombre} ha sido ingresado a la Lista Negra hasta {equipo.sancionado_hasta}.')
+            else:
+                # 🛠️ CORRECCIÓN AQUÍ: Si quitamos la fecha, limpiamos también al dirigente y a los jugadores
+                equipo.dirigente.perfil.sancionado_hasta = None
+                equipo.dirigente.perfil.save()
+                Jugador.objects.filter(equipo=equipo).update(sancionado_hasta=None)
+                messages.success(request, f'✅ Sanción levantada para {equipo.nombre}. Todos los jugadores han sido liberados.')
+            return redirect('gestionar_equipos')
+    else:
+        form = SancionListaNegraForm(instance=equipo)
+    return render(request, 'core/sancionar_equipo.html', {'form': form, 'equipo': equipo})
+
 def api_consultar_cedula(request):
     cedula = request.GET.get('cedula', '')
     if not validar_cedula_ecuador(cedula):
@@ -385,52 +613,97 @@ def api_consultar_cedula(request):
 # =========================================================
 # 2. CALENDARIO Y PARTIDOS (ACCESO VOCAL Y ADMIN)
 # =========================================================
-
 @login_required
 @user_passes_test(es_vocal_o_admin)
 def programar_partidos(request):
-    torneos = Torneo.objects.all()
-    torneo_seleccionado = request.GET.get('torneo')
-    
-    if torneo_seleccionado:
-        partidos = Partido.objects.filter(torneo_id=torneo_seleccionado)\
+    # 🔥 CAMBIO 1: Filtramos para que solo traiga los torneos activos
+    torneos = Torneo.objects.filter(activo=True).order_by('-fecha_inicio')
+    torneo_id_get = request.GET.get('torneo')
+    torneo_obj = None
+    partidos = []
+
+    # 1. CARGA DE DATOS Y LÓGICA VISUAL (GET)
+    if torneo_id_get:
+        torneo_obj = get_object_or_404(Torneo, id=torneo_id_get)
+        
+        partidos_qs = Partido.objects.filter(torneo=torneo_obj)\
             .select_related('equipo_local', 'equipo_visita')\
             .order_by('etapa', 'numero_fecha', 'fecha_hora')
-    else:
-        partidos = []
-    
+            
+        partidos_lista = list(partidos_qs)
+        
+        # LÓGICA PARA DETECTAR LA VUELTA AUTOMÁTICAMENTE
+        total_equipos = Equipo.objects.filter(torneo=torneo_obj, estado_inscripcion='APROBADO').count()
+        if total_equipos > 0:
+            fechas_ida = total_equipos - 1 if total_equipos % 2 == 0 else total_equipos
+            
+            for p in partidos_lista:
+                if p.etapa == 'F1' and p.numero_fecha and p.numero_fecha > fechas_ida:
+                    p.es_vuelta_visual = True
+                else:
+                    p.es_vuelta_visual = False
+        partidos = partidos_lista
+
+    # 2. PROCESAMIENTO DEL FORMULARIO (POST)
     if request.method == 'POST' and es_organizador(request.user):
         form = ProgramarPartidoForm(request.POST)
         
+        # 🔥 CAMBIO 2: Blindamos el formulario POST para que solo acepte torneos activos
+        if 'torneo' in form.fields:
+            form.fields['torneo'].queryset = Torneo.objects.filter(activo=True)
+            
         if form.is_valid():
+            t_form = form.cleaned_data['torneo']
             equipo_local = form.cleaned_data['equipo_local']
             equipo_visita = form.cleaned_data['equipo_visita']
             etapa_seleccionada = form.cleaned_data.get('etapa', 'F1')
             
+            # REGLA 1: NO JUGAR CONTRA SÍ MISMO
             if equipo_local == equipo_visita:
                 messages.error(request, "⛔ Error: Un equipo no puede jugar contra sí mismo.")
-                return redirect(f"{request.path}?torneo={torneo_seleccionado}")
+                return redirect(f"{request.path}?torneo={t_form.id}")
 
+            # REGLA 2: VALIDACIÓN INTELIGENTE DE FASE 1
+            if etapa_seleccionada == 'F1':
+                conteo_previo = Partido.objects.filter(
+                    torneo=t_form, etapa='F1'
+                ).filter(
+                    (Q(equipo_local=equipo_local) & Q(equipo_visita=equipo_visita)) |
+                    (Q(equipo_local=equipo_visita) & Q(equipo_visita=equipo_local))
+                ).count()
+
+                if not t_form.fase1_ida_vuelta and conteo_previo >= 1:
+                    messages.error(request, f"⛔ Error: El torneo es SOLO IDA. {equipo_local} y {equipo_visita} ya tienen un partido programado.")
+                    return redirect(f"{request.path}?torneo={t_form.id}")
+                
+                if t_form.fase1_ida_vuelta and conteo_previo >= 2:
+                    messages.error(request, f"⛔ Error: Ya se han programado los dos partidos (Ida y Vuelta) permitidos entre estos equipos.")
+                    return redirect(f"{request.path}?torneo={t_form.id}")
+
+            # REGLA 3: VALIDACIÓN DE GRUPOS EN FASE 2
             if etapa_seleccionada == 'F2':
                 if not equipo_local.grupo_fase2 or not equipo_visita.grupo_fase2:
-                    messages.error(request, "⛔ Error: Para programar en Fase 2, ambos equipos deben tener un grupo asignado.")
-                    return redirect(f"{request.path}?torneo={torneo_seleccionado}")
+                    messages.error(request, "⛔ Error: Ambos equipos deben tener un grupo asignado (A o B) para la Fase 2.")
+                    return redirect(f"{request.path}?torneo={t_form.id}")
                 
                 if equipo_local.grupo_fase2 != equipo_visita.grupo_fase2:
-                    messages.error(request, f"⛔ Regla de Grupos: No puedes enfrentar a {equipo_local.nombre} (Grupo {equipo_local.grupo_fase2}) contra {equipo_visita.nombre} (Grupo {equipo_visita.grupo_fase2}) en esta fase.")
-                    return redirect(f"{request.path}?torneo={torneo_seleccionado}")
+                    messages.error(request, f"⛔ Regla de Grupos: {equipo_local.nombre} (Grupo {equipo_local.grupo_fase2}) no puede jugar contra {equipo_visita.nombre} (Grupo {equipo_visita.grupo_fase2}).")
+                    return redirect(f"{request.path}?torneo={t_form.id}")
             
+            # REGLA 4: CHEQUEO DE DEUDAS
             if equipo_local.tiene_deudas():
-                messages.warning(request, f"Aviso: {equipo_local.nombre} tiene una deuda pendiente de ${equipo_local.total_deuda()}.")
+                messages.warning(request, f"⚠️ Aviso: {equipo_local.nombre} tiene deudas pendientes.")
             if equipo_visita.tiene_deudas():
-                messages.warning(request, f"Aviso: {equipo_visita.nombre} tiene una deuda pendiente de ${equipo_visita.total_deuda()}.")
+                messages.warning(request, f"⚠️ Aviso: {equipo_visita.nombre} tiene deudas pendientes.")
             
+            # GUARDADO ATÓMICO
             try:
                 with transaction.atomic():
                     partido = form.save()
                     duracion = 2 
                     hora_fin_estimada = (partido.fecha_hora + timedelta(hours=duracion)).time()
                     
+                    from core.models import ReservaCancha
                     ReservaCancha.objects.create(
                         fecha=partido.fecha_hora.date(),
                         hora_inicio=partido.fecha_hora.time(),
@@ -443,28 +716,37 @@ def programar_partidos(request):
                         pagado=True
                     )
 
-                messages.success(request, '✅ Partido agendado correctamente en el calendario.')
-                return redirect(f"{request.path}?torneo={form.cleaned_data['torneo'].id}")
+                messages.success(request, '✅ Partido agendado y cancha bloqueada con éxito.')
+                return redirect(f"{request.path}?torneo={t_form.id}")
             
-            except ValidationError as e:
-                messages.error(request, '⛔ La cancha ya está reservada en ese horario por un cliente externo.')
+            except ValidationError:
+                messages.error(request, '⛔ La cancha ya tiene una reserva externa en ese horario.')
             except Exception as e:
                 messages.error(request, f'Error al agendar: {str(e)}')
         else:
-            messages.error(request, "Error en el formulario. Verifica los datos ingresados.")
+            messages.error(request, "Formulario inválido. Revisa los campos.")
             
     else:
-        form = ProgramarPartidoForm(initial={'torneo': torneo_seleccionado})
-        if torneo_seleccionado:
-            equipos_aprobados = Equipo.objects.filter(torneo_id=torneo_seleccionado, estado_inscripcion='APROBADO')
+        # Carga inicial del formulario
+        form = ProgramarPartidoForm(initial={'torneo': torneo_id_get})
+        
+        # 🔥 CAMBIO 3: Filtramos el dropdown del formulario en el GET para que no salgan los inactivos
+        if 'torneo' in form.fields:
+            form.fields['torneo'].queryset = Torneo.objects.filter(activo=True).order_by('-fecha_inicio')
+            
+        if torneo_obj:
+            equipos_aprobados = Equipo.objects.filter(torneo=torneo_obj, estado_inscripcion='APROBADO')
             if 'equipo_local' in form.fields:
                 form.fields['equipo_local'].queryset = equipos_aprobados
             if 'equipo_visita' in form.fields:
                 form.fields['equipo_visita'].queryset = equipos_aprobados
 
     return render(request, 'core/programar_partidos.html', {
-        'partidos': partidos, 'form': form, 'torneos': torneos,
-        'torneo_actual': int(torneo_seleccionado) if torneo_seleccionado else None
+        'partidos': partidos, 
+        'form': form, 
+        'torneos': torneos,
+        'torneo_actual': int(torneo_id_get) if torneo_id_get else None,
+        'torneo': torneo_obj
     })
 
 @login_required
@@ -507,6 +789,8 @@ def reiniciar_partido(request, partido_id):
     partido.hubo_penales = False
     partido.penales_local = 0
     partido.penales_visita = 0
+    partido.ganador_wo = None
+    partido.sanciones_aplicadas = False
     partido.save()
     
     messages.info(request, 'El partido ha sido reiniciado. Ahora está pendiente de juego.')
@@ -544,45 +828,85 @@ def registrar_resultado(request, partido_id):
 def gestionar_vocalia(request, partido_id):
     partido = get_object_or_404(Partido, id=partido_id)
     
-    # RESUMEN FINANCIERO DE AMBOS EQUIPOS
-    deudas_local = Sancion.objects.filter(equipo=partido.equipo_local, pagada=False).order_by('fecha_creacion')
-    deudas_visita = Sancion.objects.filter(equipo=partido.equipo_visita, pagada=False).order_by('fecha_creacion')
-
-    resumen_local = {
-        'deuda': partido.equipo_local.total_deuda(),
-        'amarillas_equipo': Sancion.objects.filter(equipo=partido.equipo_local, tipo='AMARILLA', pagada=False).count(),
-        'rojas_equipo': Sancion.objects.filter(equipo=partido.equipo_local, tipo='ROJA', pagada=False).count(),
-    }
-    resumen_visita = {
-        'deuda': partido.equipo_visita.total_deuda(),
-        'amarillas_equipo': Sancion.objects.filter(equipo=partido.equipo_visita, tipo='AMARILLA', pagada=False).count(),
-        'rojas_equipo': Sancion.objects.filter(equipo=partido.equipo_visita, tipo='ROJA', pagada=False).count(),
-    }
-
+    # 1. Anotaciones de estadísticas locales, INCLUYENDO ESTRELLAS
     jugadores_local = Jugador.objects.filter(equipo=partido.equipo_local).annotate(
         goles_match=Count('detallepartido', filter=Q(detallepartido__partido=partido, detallepartido__tipo='GOL')),
         ta_match=Count('detallepartido', filter=Q(detallepartido__partido=partido, detallepartido__tipo='TA')),
         tr_match=Count('detallepartido', filter=Q(detallepartido__partido=partido, detallepartido__tipo='TR')),
-        da_match=Count('detallepartido', filter=Q(detallepartido__partido=partido, detallepartido__tipo='DA')) 
+        da_match=Count('detallepartido', filter=Q(detallepartido__partido=partido, detallepartido__tipo='DA')),
+        star_match=Count('detallepartido', filter=Q(detallepartido__partido=partido, detallepartido__tipo='STAR')) # NUEVO
     ).order_by('dorsal')
 
+    # 2. Anotaciones de estadísticas visita, INCLUYENDO ESTRELLAS
     jugadores_visita = Jugador.objects.filter(equipo=partido.equipo_visita).annotate(
         goles_match=Count('detallepartido', filter=Q(detallepartido__partido=partido, detallepartido__tipo='GOL')),
         ta_match=Count('detallepartido', filter=Q(detallepartido__partido=partido, detallepartido__tipo='TA')),
         tr_match=Count('detallepartido', filter=Q(detallepartido__partido=partido, detallepartido__tipo='TR')),
-        da_match=Count('detallepartido', filter=Q(detallepartido__partido=partido, detallepartido__tipo='DA'))
+        da_match=Count('detallepartido', filter=Q(detallepartido__partido=partido, detallepartido__tipo='DA')),
+        star_match=Count('detallepartido', filter=Q(detallepartido__partido=partido, detallepartido__tipo='STAR')) # NUEVO
     ).order_by('dorsal')
 
-    for j in jugadores_local:
-        j.mis_eventos = DetallePartido.objects.filter(partido=partido, jugador=j).only('id', 'tipo')
-    for j in jugadores_visita:
-        j.mis_eventos = DetallePartido.objects.filter(partido=partido, jugador=j).only('id', 'tipo')
+    # 3. Consultar Deudas Pendientes de ambos equipos para mostrarlas en mesa
+    deudas_pendientes = Sancion.objects.filter(
+        equipo__in=[partido.equipo_local, partido.equipo_visita], 
+        pagada=False
+    ).select_related('equipo', 'jugador').order_by('equipo__nombre', 'tipo')
 
     asistencias_ids = list(DetallePartido.objects.filter(partido=partido, tipo='ASIS').values_list('jugador_id', flat=True))
     multas = Sancion.objects.filter(partido=partido).order_by('-id')
 
     if request.method == 'POST':
-        if 'guardar_informe' in request.POST:
+        
+        # 👇 NUEVA LÓGICA DE COBRO EN MESA 👇
+        if 'cobrar_deuda' in request.POST:
+            from decimal import Decimal
+            sancion_id = request.POST.get('sancion_id')
+            abono_str = request.POST.get('monto_abono')
+            sancion = get_object_or_404(Sancion, id=sancion_id)
+            abono = Decimal(abono_str) if abono_str else sancion.saldo
+            
+            sancion.monto_pagado += abono
+            if sancion.monto_pagado >= sancion.monto:
+                sancion.pagada = True
+                sancion.monto_pagado = sancion.monto
+                messages.success(request, f"✅ ¡Deuda de {sancion.equipo.nombre} cancelada en su totalidad!")
+            else:
+                messages.success(request, f"✅ Abono de ${abono} registrado para {sancion.equipo.nombre}.")
+            sancion.save()
+            
+            # Guardamos el abono vinculándolo al partido actual
+            AbonoSancion.objects.create(sancion=sancion, monto=abono, partido=partido)
+            return redirect('gestionar_vocalia', partido_id=partido.id)
+
+        # 👇 NUEVA LÓGICA DE W.O. 👇
+        elif 'declarar_wo' in request.POST:
+            tipo_wo = request.POST.get('tipo_wo')
+            if tipo_wo == 'LOCAL':
+                partido.estado = 'WO'
+                partido.goles_local = 3
+                partido.goles_visita = 0
+                partido.ganador_wo = partido.equipo_local
+            elif tipo_wo == 'VISITA':
+                partido.estado = 'WO'
+                partido.goles_local = 0
+                partido.goles_visita = 3
+                partido.ganador_wo = partido.equipo_visita
+            elif tipo_wo == 'DOBLE':
+                partido.estado = 'WO'
+                partido.goles_local = 0
+                partido.goles_visita = 0
+                partido.ganador_wo = None # Significa que ambos pierden
+            
+            # Firmamos por ellos y blindamos
+            partido.validado_local = True
+            partido.validado_visita = True
+            partido.sanciones_aplicadas = True 
+            partido.save()
+            messages.success(request, '🚨 Partido finalizado por W.O. exitosamente.')
+            return redirect(f"/programar/?torneo={partido.torneo.id}")
+
+        # 👇 GUARDAR ACTA NORMAL 👇
+        elif 'guardar_informe' in request.POST:
             estado_anterior = partido.estado
 
             partido.informe_vocal = request.POST.get('informe_vocal')
@@ -590,11 +914,13 @@ def gestionar_vocalia(request, partido_id):
             partido.validado_local = request.POST.get('validado_local') == 'on'
             partido.validado_visita = request.POST.get('validado_visita') == 'on'
             
+            # LÓGICA DE PENALES PARA FASES ELIMINATORIAS
             if partido.etapa in ['4TOS', 'SEMI', 'TERC', 'FINAL']:
                 p_local = request.POST.get('penales_local', 0)
                 p_visita = request.POST.get('penales_visita', 0)
                 p_local = int(p_local) if p_local else 0
                 p_visita = int(p_visita) if p_visita else 0
+
                 if p_local > 0 or p_visita > 0:
                     partido.hubo_penales = True
                     partido.penales_local = p_local
@@ -604,15 +930,18 @@ def gestionar_vocalia(request, partido_id):
                     partido.penales_local = 0
                     partido.penales_visita = 0
 
+            # CIERRE ESTRICTO: ¿Están las DOS firmas?
             if partido.validado_local and partido.validado_visita:
                 partido.estado = 'JUG'
             else:
-                partido.estado = 'ACTA'
+                partido.estado = 'ACTA' # Limbo de Actas
             
             partido.save()
 
-            if estado_anterior in ['PROG', 'VIVO', 'ACTA'] and partido.estado == 'JUG':
+            # 🔥 LÓGICA DE SANCIONES BLINDADA CONTRA DUPLICADOS 🔥
+            if partido.estado == 'JUG' and not partido.sanciones_aplicadas:
                 
+                # 1. Reducir partidos de suspensión a los inactivos
                 jugadores_ambos_equipos = Jugador.objects.filter(equipo__in=[partido.equipo_local, partido.equipo_visita], partidos_suspension__gt=0)
                 detalles = DetallePartido.objects.filter(partido=partido)
                 
@@ -621,6 +950,7 @@ def gestionar_vocalia(request, partido_id):
                         j.partidos_suspension -= 1
                         j.save()
 
+                # 2. Generar multas y nuevas suspensiones (INCLUYE 3 ROJAS DIRECTAS = EXPULSIÓN)
                 jugadores_con_eventos = set([d.jugador for d in detalles])
                 for j in jugadores_con_eventos:
                     eventos_j = detalles.filter(jugador=j)
@@ -630,8 +960,16 @@ def gestionar_vocalia(request, partido_id):
 
                     if tr_partido > 0:
                         j.partidos_suspension += 2
+                        j.rojas_directas_acumuladas += 1
+                        
+                        if j.rojas_directas_acumuladas >= 3:
+                            j.expulsado_torneo = True
+                            desc_roja = f"Expulsión Definitiva del Torneo (Límite 3 Rojas) - {j.nombres}"
+                        else:
+                            desc_roja = f"Roja Directa - {j.nombres}"
+                            
                         j.save()
-                        Sancion.objects.create(torneo=partido.torneo, equipo=j.equipo, jugador=j, partido=partido, tipo='ROJA', monto=partido.torneo.costo_roja, descripcion=f"Roja Directa - {j.nombres}")
+                        Sancion.objects.create(torneo=partido.torneo, equipo=j.equipo, jugador=j, partido=partido, tipo='ROJA', monto=partido.torneo.costo_roja, descripcion=desc_roja)
                     
                     if da_partido > 0:
                         j.partidos_suspension += 1
@@ -641,15 +979,12 @@ def gestionar_vocalia(request, partido_id):
                     if ta_partido > 0:
                         Sancion.objects.create(torneo=partido.torneo, equipo=j.equipo, jugador=j, partido=partido, tipo='AMARILLA', monto=partido.torneo.costo_amarilla, descripcion=f"Tarjeta Amarilla - {j.nombres}")
                         
-                        # ✨ NUEVA REGLA DE AMARILLAS POR ETAPA ✨
+                        # REGLA DE LAS 4 AMARILLAS (REINICIO POR FASE)
                         if partido.etapa == 'F1':
-                            limite_ta = 4
                             fases_validas = ['F1']
                         elif partido.etapa == 'F2':
-                            limite_ta = 3
                             fases_validas = ['F2']
                         else:
-                            limite_ta = 2
                             fases_validas = ['4TOS', 'SEMI', 'TERC', 'FINAL']
                         
                         total_ta_fase = DetallePartido.objects.filter(
@@ -659,9 +994,13 @@ def gestionar_vocalia(request, partido_id):
                             tipo='TA'
                         ).count()
                         
-                        if total_ta_fase > 0 and total_ta_fase % limite_ta == 0:
+                        if total_ta_fase > 0 and total_ta_fase % 4 == 0:
                             j.partidos_suspension += 1
                             j.save()
+
+                # BLOQUEAR LAS SANCIONES PARA QUE NO SE REPITAN NUNCA MÁS
+                partido.sanciones_aplicadas = True
+                partido.save()
 
                 messages.success(request, '✅ Acta firmada por ambos equipos. Partido Finalizado y Sanciones aplicadas.')
                 return redirect(f"/programar/?torneo={partido.torneo.id}")
@@ -671,9 +1010,14 @@ def gestionar_vocalia(request, partido_id):
                     messages.info(request, '📋 Partido guardado en Actas. (Aún faltan firmas para cerrarlo).')
                     return redirect(f"/programar/?torneo={partido.torneo.id}")
                 else:
-                    messages.warning(request, '⚠️ Faltan las firmas de ambos equipos para Finalizar el partido oficialmente.')
-                    return redirect('gestionar_vocalia', partido_id=partido_id)
+                    if partido.estado == 'JUG':
+                         messages.success(request, '✅ Acta actualizada con éxito (Evitando cobros duplicados).')
+                         return redirect(f"/programar/?torneo={partido.torneo.id}")
+                    else:
+                         messages.warning(request, '⚠️ Faltan las firmas de ambos equipos para Finalizar el partido oficialmente.')
+                         return redirect('gestionar_vocalia', partido_id=partido_id)
         
+        # 👇 NUEVA MULTA MANUAL 👇
         elif 'nueva_multa' in request.POST:
             equipo_id = request.POST.get('equipo_multa')
             motivo = request.POST.get('motivo_multa')
@@ -687,14 +1031,11 @@ def gestionar_vocalia(request, partido_id):
 
     return render(request, 'core/gestionar_vocalia.html', {
         'partido': partido,
-        'resumen_local': resumen_local,
-        'resumen_visita': resumen_visita,
-        'deudas_local': deudas_local,  # <- Agregar esto
-        'deudas_visita': deudas_visita,
         'jugadores_local': jugadores_local,
         'jugadores_visita': jugadores_visita,
         'asistencias_ids': asistencias_ids,
-        'multas': multas
+        'multas': multas,
+        'deudas_pendientes': deudas_pendientes # Pasamos la variable al HTML
     })
 
 @login_required
@@ -713,27 +1054,37 @@ def registrar_incidencia(request, partido_id):
         
         jugador = get_object_or_404(Jugador, id=jugador_id)
 
+        # Usamos equipo_incidencia=jugador.equipo para que el evento se quede con el equipo actual
         if tipo_evento == 'TA':
             amarilla_previa = DetallePartido.objects.filter(partido=partido, jugador=jugador, tipo='TA').first()
             if amarilla_previa:
                 amarilla_previa.delete()
-                DetallePartido.objects.create(partido=partido, jugador=jugador, tipo='DA', observacion="Roja por Acumulación")
+                DetallePartido.objects.create(partido=partido, jugador=jugador, tipo='DA', observacion="Roja por Acum.", equipo_incidencia=jugador.equipo)
                 messages.error(request, f'🟥 ¡ROJA POR ACUMULACIÓN para {jugador.nombres}!')
             else:
-                DetallePartido.objects.create(partido=partido, jugador=jugador, tipo='TA', minuto=int(minuto) if minuto else 0)
+                DetallePartido.objects.create(partido=partido, jugador=jugador, tipo='TA', minuto=int(minuto) if minuto else 0, equipo_incidencia=jugador.equipo)
                 messages.warning(request, f'🟨 Tarjeta Amarilla registrada a {jugador.nombres}.')
 
         elif tipo_evento == 'TR':
-            DetallePartido.objects.create(partido=partido, jugador=jugador, tipo='TR', minuto=int(minuto) if minuto else 0)
+            DetallePartido.objects.create(partido=partido, jugador=jugador, tipo='TR', minuto=int(minuto) if minuto else 0, equipo_incidencia=jugador.equipo)
             messages.error(request, f'🟥 ¡ROJA DIRECTA para {jugador.nombres}!')
 
         elif tipo_evento == 'GOL':
-            DetallePartido.objects.create(partido=partido, jugador=jugador, tipo='GOL', minuto=int(minuto) if minuto else 0)
+            DetallePartido.objects.create(partido=partido, jugador=jugador, tipo='GOL', minuto=int(minuto) if minuto else 0, equipo_incidencia=jugador.equipo)
             if jugador.equipo == partido.equipo_local:
                 partido.goles_local += 1
             else:
                 partido.goles_visita += 1
             messages.success(request, f'⚽ ¡Gol de {jugador.nombres}!')
+
+        elif tipo_evento == 'STAR':
+            # Verificamos que no haya más de 2 estrellas en TODO el partido
+            estrellas_actuales = DetallePartido.objects.filter(partido=partido, tipo='STAR').count()
+            if estrellas_actuales >= 2:
+                messages.error(request, '⭐ Error: Solo se pueden asignar máximo 2 figuras (estrellas) por partido.')
+            else:
+                DetallePartido.objects.create(partido=partido, jugador=jugador, tipo='STAR', equipo_incidencia=jugador.equipo)
+                messages.success(request, f'⭐ ¡{jugador.nombres} fue elegido como Figura del Partido!')
         
         if partido.estado == 'PROG':
             partido.estado = 'VIVO'
@@ -748,8 +1099,9 @@ def eliminar_evento_ultimo(request, partido_id, jugador_id, tipo):
     if tipo == 'TA':
         evento_da = DetallePartido.objects.filter(partido_id=partido_id, jugador_id=jugador_id, tipo='DA').last()
         if evento_da:
+            jugador_obj = evento_da.jugador
             evento_da.delete()
-            DetallePartido.objects.create(partido_id=partido_id, jugador_id=jugador_id, tipo='TA')
+            DetallePartido.objects.create(partido_id=partido_id, jugador_id=jugador_id, tipo='TA', equipo_incidencia=jugador_obj.equipo)
             messages.success(request, "Corrección: Roja por Acumulación anulada. Se restauró 1 Amarilla.")
             return redirect('gestionar_vocalia', partido_id=partido_id)
 
@@ -762,7 +1114,8 @@ def eliminar_evento_ultimo(request, partido_id, jugador_id, tipo):
     if evento:
         partido = evento.partido
         if tipo == 'GOL':
-            if evento.jugador.equipo == partido.equipo_local:
+            # Verificamos mediante equipo_incidencia a quién restarle el gol
+            if evento.equipo_incidencia == partido.equipo_local:
                 partido.goles_local = max(0, partido.goles_local - 1)
             else:
                 partido.goles_visita = max(0, partido.goles_visita - 1)
@@ -780,7 +1133,7 @@ def eliminar_evento(request, evento_id):
     partido = evento.partido
     
     if evento.tipo == 'GOL':
-        if evento.jugador.equipo == partido.equipo_local:
+        if evento.equipo_incidencia == partido.equipo_local:
             partido.goles_local = max(0, partido.goles_local - 1)
         else:
             partido.goles_visita = max(0, partido.goles_visita - 1)
@@ -825,7 +1178,7 @@ def toggle_asistencia(request, partido_id, jugador_id):
             DetallePartido.objects.filter(partido=partido, jugador=jugador).delete()
             messages.warning(request, f'Se retiró a {jugador.nombres}. Historial del partido limpiado.')
     else:
-        DetallePartido.objects.create(partido=partido, jugador=jugador, tipo='ASIS')
+        DetallePartido.objects.create(partido=partido, jugador=jugador, tipo='ASIS', equipo_incidencia=jugador.equipo)
         messages.success(request, f'{jugador.nombres} ingresó a la cancha.')
         
     return redirect('gestionar_vocalia', partido_id=partido.id)
@@ -836,68 +1189,58 @@ def toggle_asistencia(request, partido_id, jugador_id):
 
 @login_required
 def tabla_posiciones(request, torneo_id):
-    torneo = get_object_or_404(Torneo, id=torneo_id)
+    torneo = Torneo.objects.get(id=torneo_id)
     equipos = Equipo.objects.filter(torneo=torneo, estado_inscripcion='APROBADO')
-    
-    # Función interna para no repetir código matemático
-    def calcular_estadisticas(filtro_vuelta=None):
-        tabla = []
-        for equipo in equipos:
-            # Filtramos los partidos jugados por este equipo en la Fase 1
-            partidos_jugados = Partido.objects.filter(
-                torneo=torneo, etapa='F1', estado__in=['JUG', 'WO']
-            ).filter(Q(equipo_local=equipo) | Q(equipo_visita=equipo))
-            
-            # Si pedimos solo la segunda vuelta, filtramos
-            if filtro_vuelta:
-                partidos_jugados = partidos_jugados.filter(vuelta=filtro_vuelta)
-                
-            pj = pg = pe = pp = gf = gc = 0
-            
-            for p in partidos_jugados:
-                pj += 1
-                es_local = (p.equipo_local == equipo)
-                goles_favor = p.goles_local if es_local else p.goles_visita
-                goles_contra = p.goles_visita if es_local else p.goles_local
-                
-                gf += goles_favor
-                gc += goles_contra
-                
-                if goles_favor > goles_contra:
-                    pg += 1
-                elif goles_favor == goles_contra:
-                    pe += 1
-                else:
-                    pp += 1
-            
-            # Puntos: Partidos Ganados * 3 + Empates * 1 + BONIFICACIÓN
-            puntos = (pg * 3) + (pe * 1) + equipo.puntos_bonificacion
-            gd = gf - gc
-            
-            tabla.append({
-                'equipo': equipo,
-                'pj': pj, 'pg': pg, 'pe': pe, 'pp': pp,
-                'gf': gf, 'gc': gc, 'gd': gd,
-                'puntos': puntos,
-                'bono': equipo.puntos_bonificacion
-            })
-            
-        # Ordenamos por Puntos, luego Gol Diferencia, luego Goles a Favor
-        return sorted(tabla, key=lambda x: (x['puntos'], x['gd'], x['gf']), reverse=True)
+    tabla = []
 
-    # Generamos ambas tablas
-    tabla_general = calcular_estadisticas(filtro_vuelta=None) # Suma todo
-    tabla_vuelta2 = calcular_estadisticas(filtro_vuelta=2)    # Solo Vuelta 2
+    for equipo in equipos:
+        partidos = Partido.objects.filter(
+            Q(equipo_local=equipo) | Q(equipo_visita=equipo),
+            estado__in=['JUG', 'WO', 'FINALIZADO'], 
+            etapa='F1' 
+        )
+        
+        pj = 0; pg = 0; pe = 0; pp = 0; gf = 0; gc = 0
+        
+        for p in partidos:
+            pj += 1
+            es_local = (p.equipo_local == equipo)
+            goles_propios = p.goles_local if es_local else p.goles_visita
+            goles_rival = p.goles_visita if es_local else p.goles_local
+            
+            gf += goles_propios
+            gc += goles_rival
+            
+            # 👇 NUEVA LÓGICA DE PUNTOS QUE CONTEMPLA EL W.O. 👇
+            if p.estado == 'WO':
+                if p.ganador_wo == equipo:
+                    pg += 1  # Gana el partido por WO
+                else:
+                    pp += 1  # Pierde por WO (ya sea en contra, o Doble WO donde ambos pierden)
+            else:
+                if goles_propios > goles_rival: pg += 1
+                elif goles_propios < goles_rival: pp += 1
+                else: pe += 1
+        
+        puntos = (pg * 3) + (pe * 1)
+        gol_diferencia = gf - gc
+        
+        tabla.append({
+            'equipo': equipo,
+            'pj': pj, 'pg': pg, 'pe': pe, 'pp': pp,
+            'gf': gf, 'gc': gc, 'gd': gol_diferencia,
+            'pts': puntos,
+            'bono': 0
+        })
     
-    # Verificamos si ya existe la segunda vuelta para mostrar o no el botón de generarla
-    existe_vuelta2 = Partido.objects.filter(torneo=torneo, etapa='F1', vuelta=2).exists()
+    tabla_ordenada = sorted(tabla, key=lambda x: (x['pts'], x['gd'], x['gf']), reverse=True)
+    fase2_ya_generada = equipos.filter(grupo_fase2__in=['A', 'B']).exists()
 
     return render(request, 'core/tabla_posiciones.html', {
-        'torneo': torneo,
-        'tabla_general': tabla_general,
-        'tabla_vuelta2': tabla_vuelta2,
-        'existe_vuelta2': existe_vuelta2,
-        'es_organizador': request.user.perfil.rol == 'ORG'
+        'torneo': torneo, 
+        'tabla': tabla_ordenada, 
+        'fase': 1,
+        'fase2_ya_generada': fase2_ya_generada
     })
 
 @login_required
@@ -943,7 +1286,7 @@ def generar_fase2(request, torneo_id):
                 equipo.grupo_fase2 = 'B'
             equipo.save()
 
-    formato_texto = "Ida y Vuelta" if ida_y_vuelta else "Solo Ida"
+    formato_texto = "Ida y Vuelta Acumulativa" if ida_y_vuelta else "Solo Ida"
     messages.success(request, f'✅ Fase 2 generada en formato: {formato_texto}. Equipos divididos y bonos asignados.')
     return redirect('tabla_posiciones_f2', torneo_id=torneo.id)
 
@@ -991,174 +1334,213 @@ def tabla_posiciones_f2(request, torneo_id):
     tabla_b = calcular_grupo('B')
     
     cuartos_generados = Partido.objects.filter(torneo=torneo, etapa='4TOS').exists()
-    llaves_ya_generadas = Partido.objects.filter(torneo=torneo, etapa__in=['4TOS', 'SEMI', 'TERC', 'FINAL']).exists()
-    
+
     return render(request, 'core/tabla_posiciones_f2.html', {
         'torneo': torneo, 
         'tabla_a': tabla_a, 
         'tabla_b': tabla_b,
-        'llaves_ya_generadas': llaves_ya_generadas,
         'fase': 2,
         'cuartos_generados': cuartos_generados,
         'es_organizador': request.user.perfil.rol == 'ORG'
     })
 
 def seleccionar_reporte(request):
-    torneos = Torneo.objects.all().order_by('-activo', '-fecha_inicio')
-    return render(request, 'core/seleccionar_reporte.html', {'torneos': torneos})
+    # Separamos y ordenamos: Activos por Categoría, Finalizados por Año
+    torneos_activos = Torneo.objects.filter(activo=True).order_by('categoria__nombre', '-fecha_inicio')
+    torneos_finalizados = Torneo.objects.filter(activo=False).order_by('-fecha_inicio')
+    
+    return render(request, 'core/seleccionar_reporte.html', {
+        'torneos_activos': torneos_activos, 
+        'torneos_finalizados': torneos_finalizados
+    })
 
-from django.db.models import Sum, Q
-
+@login_required
 def reporte_estadisticas(request, torneo_id):
     torneo = get_object_or_404(Torneo, id=torneo_id)
-    
-    # 1. Determinar el ROL
-    rol = request.user.perfil.rol if request.user.is_authenticated else 'PUB'
-    
-    # 2. Control Inteligente de Fases
-    fase2_generada = Partido.objects.filter(torneo=torneo, etapa='F2').exists()
-    hay_llaves = Partido.objects.filter(torneo=torneo, etapa__in=['4TOS', 'SEMI', 'TERC', 'FINAL']).exists()
-    
-    # 🔥 AQUI SE VERIFICA SI EXISTE LA 2DA VUELTA
-    existe_vuelta2 = Partido.objects.filter(torneo=torneo, etapa='F1', vuelta=2).exists()
-    
-    if rol == 'ORG':
-        fase_actual = int(request.GET.get('fase', 2 if fase2_generada else 1))
-    else:
-        fase_actual = 2 if fase2_generada else 1
+    user_perfil = request.user.perfil if hasattr(request.user, 'perfil') else None
+    rol = user_perfil.rol if user_perfil else 'FAN'
 
-    # 3. Variables Base
-    tabla_general = []
-    tabla_vuelta2 = []
+    hay_fase1 = Partido.objects.filter(torneo=torneo, etapa='F1').exists()
+    hay_fase2 = Partido.objects.filter(torneo=torneo, etapa='F2').exists()
+    hay_llaves = Partido.objects.filter(torneo=torneo, etapa__in=['4TOS', 'SEMI', 'TERC', 'FINAL']).exists()
+
+    fase_forzada = request.GET.get('fase')
+    fase_actual = 1
+
+    if rol == 'ORG' and fase_forzada:
+        fase_actual = int(fase_forzada)
+    else:
+        if hay_fase2 or hay_llaves:
+            fase_actual = 2
+        else:
+            fase_actual = 1
+
+    tabla_fase1 = []
     tabla_a = []
     tabla_b = []
-    
-    equipos = Equipo.objects.filter(torneo=torneo)
-    equipos_todos = equipos # Solución para el Fair Play
-    
-    # ==========================================
-    # CÁLCULO DE FASE 1
-    # ==========================================
+    equipos_todos = Equipo.objects.filter(torneo=torneo, estado_inscripcion='APROBADO')
+
     if fase_actual == 1:
-        for eq in equipos:
-            locales = Partido.objects.filter(torneo=torneo, etapa='F1', equipo_local=eq, estado__in=['FINALIZADO', 'JUG', 'WO'])
-            visitas = Partido.objects.filter(torneo=torneo, etapa='F1', equipo_visita=eq, estado__in=['FINALIZADO', 'JUG', 'WO'])
-            
-            # --- TABLA GENERAL (Suma TODO y los bonos) ---
-            pj=pg=pe=pp=gf=gc=0
-            for p in locales:
-                pj+=1; gf+=p.goles_local; gc+=p.goles_visita
-                if p.goles_local > p.goles_visita: pg+=1
-                elif p.goles_local == p.goles_visita: pe+=1
-                else: pp+=1
-            for p in visitas:
-                pj+=1; gf+=p.goles_visita; gc+=p.goles_local
-                if p.goles_visita > p.goles_local: pg+=1
-                elif p.goles_visita == p.goles_local: pe+=1
-                else: pp+=1
-            
-            pts = (pg * 3) + pe + eq.puntos_bonificacion
-            tabla_general.append({
-                'equipo': eq, 'pj': pj, 'pg': pg, 'pe': pe, 'pp': pp, 
-                'gf': gf, 'gc': gc, 'gd': gf-gc, 'puntos': pts, 'bono': eq.puntos_bonificacion
+        for equipo in equipos_todos:
+            partidos = Partido.objects.filter(
+                Q(equipo_local=equipo) | Q(equipo_visita=equipo),
+                estado__in=['JUG', 'WO', 'FINALIZADO'], etapa='F1'
+            )
+            pj=0; pg=0; pe=0; pp=0; gf=0; gc=0
+            for p in partidos:
+                pj += 1
+                es_local = (p.equipo_local == equipo)
+                goles_pro = p.goles_local if es_local else p.goles_visita
+                goles_riv = p.goles_visita if es_local else p.goles_local
+                gf += goles_pro; gc += goles_riv
+                if goles_pro > goles_riv: pg += 1
+                elif goles_pro < goles_riv: pp += 1
+                else: pe += 1
+            tabla_fase1.append({
+                'equipo': equipo, 'pj': pj, 'pg': pg, 'pe': pe, 'pp': pp,
+                'gf': gf, 'gc': gc, 'gd': gf - gc, 'pts': (pg * 3) + (pe * 1)
             })
+        tabla_fase1 = sorted(tabla_fase1, key=lambda x: (x['pts'], x['gd'], x['gf']), reverse=True)
 
-            # --- TABLA SEGUNDA VUELTA (Exclusiva) ---
-            if existe_vuelta2:
-                loc2 = locales.filter(vuelta=2)
-                vis2 = visitas.filter(vuelta=2)
-                pj2=pg2=pe2=pp2=gf2=gc2=0
-                for p in loc2:
-                    pj2+=1; gf2+=p.goles_local; gc2+=p.goles_visita
-                    if p.goles_local > p.goles_visita: pg2+=1
-                    elif p.goles_local == p.goles_visita: pe2+=1
-                    else: pp2+=1
-                for p in vis2:
-                    pj2+=1; gf2+=p.goles_visita; gc2+=p.goles_local
-                    if p.goles_visita > p.goles_local: pg2+=1
-                    elif p.goles_visita == p.goles_local: pe2+=1
-                    else: pp2+=1
-                
-                pts2 = (pg2 * 3) + pe2 + eq.puntos_bonificacion
-                tabla_vuelta2.append({
-                    'equipo': eq, 'pj': pj2, 'pg': pg2, 'pe': pe2, 'pp': pp2, 
-                    'gf': gf2, 'gc': gc2, 'gd': gf2-gc2, 'puntos': pts2, 'bono': eq.puntos_bonificacion
-                })
-
-        # Ordenar tablas
-        tabla_general.sort(key=lambda x: (x['puntos'], x['gd'], x['gf']), reverse=True)
-        if existe_vuelta2:
-            tabla_vuelta2.sort(key=lambda x: (x['puntos'], x['gd'], x['gf']), reverse=True)
-
-    # ==========================================
-    # CÁLCULO DE FASE 2
-    # ==========================================
     elif fase_actual == 2:
-        for eq in equipos:
-            if not eq.grupo_fase2: continue
-            locales = Partido.objects.filter(torneo=torneo, etapa='F2', equipo_local=eq, estado__in=['FINALIZADO', 'JUG', 'WO'])
-            visitas = Partido.objects.filter(torneo=torneo, etapa='F2', equipo_visita=eq, estado__in=['FINALIZADO', 'JUG', 'WO'])
-            
-            pj=pg=pe=pp=gf=gc=0
-            for p in locales:
-                pj+=1; gf+=p.goles_local; gc+=p.goles_visita
-                if p.goles_local > p.goles_visita: pg+=1
-                elif p.goles_local == p.goles_visita: pe+=1
-                else: pp+=1
-            for p in visitas:
-                pj+=1; gf+=p.goles_visita; gc+=p.goles_local
-                if p.goles_visita > p.goles_local: pg+=1
-                elif p.goles_visita == p.goles_local: pe+=1
-                else: pp+=1
-            
-            pts = (pg * 3) + pe + eq.puntos_bonificacion
-            fila = {'equipo': eq, 'pj': pj, 'pg': pg, 'pe': pe, 'pp': pp, 'gf': gf, 'gc': gc, 'gd': gf-gc, 'pts': pts}
-            
-            if eq.grupo_fase2 == 'A': tabla_a.append(fila)
-            elif eq.grupo_fase2 == 'B': tabla_b.append(fila)
-            
-        tabla_a.sort(key=lambda x: (x['pts'], x['gd'], x['gf']), reverse=True)
-        tabla_b.sort(key=lambda x: (x['pts'], x['gd'], x['gf']), reverse=True)
+        def calcular_grupo(letra_grupo):
+            equipos_grupo = equipos_todos.filter(grupo_fase2=letra_grupo)
+            lista_tabla = []
+            for equipo in equipos_grupo:
+                partidos = Partido.objects.filter(
+                    Q(equipo_local=equipo) | Q(equipo_visita=equipo),
+                    estado__in=['JUG', 'WO', 'FINALIZADO'], etapa='F2'
+                )
+                pj=0; pg=0; pe=0; pp=0; gf=0; gc=0
+                for p in partidos:
+                    pj+=1
+                    es_local = (p.equipo_local == equipo)
+                    goles_pro = p.goles_local if es_local else p.goles_visita
+                    goles_riv = p.goles_visita if es_local else p.goles_local
+                    gf+=goles_pro; gc+=goles_riv
+                    if goles_pro > goles_riv: pg+=1
+                    elif goles_pro < goles_riv: pp+=1
+                    else: pe+=1
+                pts = (pg * 3) + (pe * 1) + equipo.puntos_bonificacion
+                lista_tabla.append({
+                    'equipo': equipo, 'pj': pj, 'pg': pg, 'pe': pe, 'pp': pp,
+                    'gf': gf, 'gc': gc, 'gd': gf-gc, 'pts': pts, 'bono': equipo.puntos_bonificacion
+                })
+            return sorted(lista_tabla, key=lambda x: (x['pts'], x['gd'], x['gf']), reverse=True)
+        
+        tabla_a = calcular_grupo('A')
+        tabla_b = calcular_grupo('B')
 
-    # ==========================================
-    # ESTADÍSTICAS EXTRA (Goleadores, Sanciones)
-    # ==========================================
-    goleadores = DetallePartido.objects.filter(partido__torneo=torneo, tipo='GOL').values(
+    goleadores = DetallePartido.objects.filter(
+        partido__torneo=torneo, 
+        tipo='GOL',
+        equipo_incidencia=F('jugador__equipo') # 🛡️ LA REGLA DE ORO: El gol debe coincidir con su equipo actual
+    ).values(
         'jugador__nombres', 'jugador__equipo__nombre', 'jugador__equipo__escudo'
-    ).annotate(total_goles=Count('id')).order_by('-total_goles', 'jugador__nombres')[:15]
+    ).annotate(
+        total_goles=Count('id')
+    ).order_by('-total_goles', 'jugador__nombres')[:15]
 
-    sancionados_activos = Sancion.objects.filter(torneo=torneo, pagada=False).select_related('jugador', 'equipo')
-    # Equipos permitidos para dropdown
-    if rol == 'DIR':
-        equipos_permitidos = equipos_todos.filter(representante=request.user)
-    else:
+    sancionados_activos = []
+    
+    # 🛡️ ACTUALIZADO: Buscamos a los jugadores suspendidos por rojas, bloqueados por cuota o expulsados
+    jugadores_suspendidos = Jugador.objects.filter(
+        Q(equipo__in=equipos_todos) & 
+        (Q(partidos_suspension__gt=0) | Q(bloqueado_por_cuota=True) | Q(expulsado_torneo=True))
+    ).distinct()
+
+    for j in jugadores_suspendidos:
+        # 🚫 NUEVO: Comprobaciones rápidas para los bloqueados y expulsados
+        if getattr(j, 'bloqueado_por_cuota', False):
+            sancionados_activos.append({'jugador': j, 'motivo': "No cumplió límite de partidos jugados", 'restantes': "Inhabilitado"})
+            continue
+        
+        if j.expulsado_torneo:
+            sancionados_activos.append({'jugador': j, 'motivo': "Expulsado del Torneo (Límite de rojas)", 'restantes': "Definitivo"})
+            continue
+            
+        detalles = DetallePartido.objects.filter(jugador=j, partido__torneo=torneo).order_by('partido__fecha_hora')
+        motivo = "Suspensión Disciplinaria"
+        ultimo_fuerte = detalles.filter(tipo__in=['TR', 'DA', 'EBRI', 'AZUL']).last()
+        amarillas_totales = detalles.filter(tipo='TA')
+        cantidad_ta = amarillas_totales.count()
+        
+        ultima_amarilla_sancionable = None
+        if cantidad_ta > 0 and cantidad_ta % 4 == 0:
+            ultima_amarilla_sancionable = amarillas_totales.last()
+
+        if ultima_amarilla_sancionable and ultimo_fuerte:
+            if ultima_amarilla_sancionable.partido.fecha_hora > ultimo_fuerte.partido.fecha_hora: motivo = "Acumulación 4 Amarillas"
+            else:
+                if ultimo_fuerte.tipo == 'TR': motivo = "Roja Directa"
+                elif ultimo_fuerte.tipo == 'DA': motivo = "Roja por Acumulación (DA)"
+                else: motivo = f"Sanción Especial ({ultimo_fuerte.tipo})"
+        elif ultima_amarilla_sancionable: motivo = "Acumulación 4 Amarillas"
+        elif ultimo_fuerte:
+            if ultimo_fuerte.tipo == 'TR': motivo = "Roja Directa"
+            elif ultimo_fuerte.tipo == 'DA': motivo = "Roja por Acumulación (DA)"
+            else: motivo = f"Sanción Especial ({ultimo_fuerte.tipo})"
+
+        sancionados_activos.append({'jugador': j, 'motivo': motivo, 'restantes': f"Debe {j.partidos_suspension} fecha(s)"})
+
+    if rol in ['ORG', 'VOC']:
         equipos_permitidos = equipos_todos
+    elif rol == 'DIR':
+        equipos_permitidos = Equipo.objects.filter(torneo=torneo, dirigente=request.user, estado_inscripcion='APROBADO')
+    else:
+        equipos_permitidos = Equipo.objects.none()
 
     equipo_id = request.GET.get('equipo')
-    equipo_seleccionado = None
     jugadores_detalle = []
+    equipo_seleccionado = None
 
-    if equipo_id:
-        equipo_seleccionado = get_object_or_404(Equipo, id=equipo_id, torneo=torneo)
-        if rol == 'ORG' or (rol == 'DIR' and equipo_seleccionado.representante == request.user) or rol == 'PUB':
-            jugadores = Jugador.objects.filter(equipo=equipo_seleccionado)
-            for j in jugadores:
-                ta = Tarjeta.objects.filter(jugador=j, partido__torneo=torneo, tipo='AMARILLA').count()
-                da = Tarjeta.objects.filter(jugador=j, partido__torneo=torneo, tipo='DOBLE_AMARILLA').count()
-                tr = Tarjeta.objects.filter(jugador=j, partido__torneo=torneo, tipo='ROJA').count()
+    if not equipo_id and rol == 'DIR' and equipos_permitidos.count() == 1:
+        equipo_seleccionado = equipos_permitidos.first()
+    elif equipo_id and equipo_id.isdigit():
+        try:
+            equipo_seleccionado = equipos_permitidos.get(id=equipo_id)
+        except Equipo.DoesNotExist:
+            equipo_seleccionado = None
+
+    if equipo_seleccionado:
+        # ✨ MAGIA NEXT LEVEL: Obtenemos a los jugadores actuales Y a los que ya fueron traspasados pero dejaron goles/historial aquí
+        jugadores_actuales = list(Jugador.objects.filter(equipo=equipo_seleccionado).values_list('id', flat=True))
+        jugadores_historicos = list(DetallePartido.objects.filter(equipo_incidencia=equipo_seleccionado).values_list('jugador_id', flat=True))
+        
+        ids_unicos = set(jugadores_actuales + jugadores_historicos)
+        roster = Jugador.objects.filter(id__in=ids_unicos)
+
+        for j in roster:
+            # 🛡️ Filtramos las estadísticas SOLO por lo que hizo con la camiseta de ESTE equipo
+            stats = DetallePartido.objects.filter(
+                jugador=j, 
+                partido__torneo=torneo, 
+                equipo_incidencia=equipo_seleccionado
+            )
+            
+            # Si el jugador ya no está en el equipo actual, le agregamos una etiqueta para que el dirigente sepa
+            nota_transferido = "" if j.id in jugadores_actuales else " (Transferido)"
+
+            total_ta = stats.filter(tipo='TA').count()
+            ta_mostrar = total_ta % 4 
+            
+            # Solo agregamos a la lista si tiene alguna estadística o si sigue en el equipo actual
+            if j.id in jugadores_actuales or stats.exists():
+                jugadores_detalle.append({
+                    'dorsal': j.dorsal, # <--- AÑADIDO: El Dorsal ahora viaja a la plantilla
+                    'nombre': j.nombres + nota_transferido, 
+                    'pj': stats.filter(tipo='ASIS').count(), 
+                    'ta': ta_mostrar, 
+                    'da': stats.filter(tipo='DA').count(),
+                    'tr': stats.filter(tipo='TR').count(), 
+                    'goles': stats.filter(tipo='GOL').count(),
+                    'stars': stats.filter(tipo='STAR').count()
+                })
                 
-                pj_jugador = Partido.objects.filter(torneo=torneo, estado__in=['FINALIZADO', 'JUG']).filter(Q(equipo_local=equipo_seleccionado) | Q(equipo_visita=equipo_seleccionado)).count()
-                jugadores_detalle.append({'nombre': j.nombres, 'pj': pj_jugador, 'ta': ta, 'da': da, 'tr': tr})
-            jugadores_detalle.sort(key=lambda x: (x['tr'], x['da'], x['ta']), reverse=True)
-
     return render(request, 'core/reporte_estadisticas.html', {
         'torneo': torneo, 
-        'rol': rol,
         'fase_actual': fase_actual,
-        'hay_llaves': hay_llaves,
-        'tabla_general': tabla_general,
-        'tabla_vuelta2': tabla_vuelta2,
-        'existe_vuelta2': existe_vuelta2,
+        'tabla_fase1': tabla_fase1,
         'tabla_a': tabla_a,
         'tabla_b': tabla_b,
         'goleadores': goleadores, 
@@ -1166,16 +1548,22 @@ def reporte_estadisticas(request, torneo_id):
         'equipo_seleccionado': equipo_seleccionado, 
         'jugadores_detalle': jugadores_detalle, 
         'sancionados_activos': sancionados_activos, 
+        'rol': rol,
+        'hay_llaves': hay_llaves
     })
 
 @login_required
 def tabla_goleadores(request, torneo_id):
     torneo = Torneo.objects.get(id=torneo_id)
-    goleadores = DetallePartido.objects.filter(partido__torneo=torneo, tipo='GOL').values(
+    goleadores = DetallePartido.objects.filter(
+        partido__torneo=torneo, 
+        tipo='GOL',
+        equipo_incidencia=F('jugador__equipo') # 🛡️ LA REGLA DE ORO: El gol debe coincidir con su equipo actual
+    ).values(
         'jugador__nombres', 'jugador__equipo__nombre', 'jugador__equipo__escudo'
-    ).annotate(total_goles=Count('id')).order_by('-total_goles', 'jugador__nombres')[:10]
-    return render(request, 'core/tabla_goleadores.html', {'torneo': torneo, 'goleadores': goleadores})
-
+    ).annotate(
+        total_goles=Count('id')
+    ).order_by('-total_goles', 'jugador__nombres')[:15]
 # =========================================================
 # 5. GENERACIÓN DE PDF (ACTA) (ACCESO VOCAL Y ADMIN)
 # =========================================================
@@ -1186,18 +1574,22 @@ def generar_acta_pdf(request, partido_id):
     partido = Partido.objects.get(id=partido_id)
     detalles = DetallePartido.objects.filter(partido=partido).select_related('jugador')
     
-    asistencias_local = detalles.filter(tipo='ASIS', jugador__equipo=partido.equipo_local)
-    asistencias_visita = detalles.filter(tipo='ASIS', jugador__equipo=partido.equipo_visita)
+    asistencias_local = detalles.filter(tipo='ASIS', equipo_incidencia=partido.equipo_local)
+    asistencias_visita = detalles.filter(tipo='ASIS', equipo_incidencia=partido.equipo_visita)
     goles = detalles.filter(tipo='GOL')
     tarjetas = detalles.filter(tipo__in=['TA', 'TR', 'DA', 'AZUL', 'EBRI'])
+    estrellas = detalles.filter(tipo='STAR') 
+    abonos = AbonoSancion.objects.filter(partido=partido) 
+    
+    # 👇 NUEVO: Traemos las multas administrativas creadas en este partido
+    multas = Sancion.objects.filter(partido=partido, tipo='ADMIN')
 
     template_path = 'core/acta_partido_pdf.html'
     context = {
-        'partido': partido,
-        'asistencias_local': asistencias_local,
-        'asistencias_visita': asistencias_visita,
-        'goles': goles,
-        'tarjetas': tarjetas,
+        'partido': partido, 'asistencias_local': asistencias_local,
+        'asistencias_visita': asistencias_visita, 'goles': goles,
+        'tarjetas': tarjetas, 'estrellas': estrellas, 'abonos': abonos,
+        'multas': multas # 👇 NUEVO: Añadimos las multas al contexto del PDF
     }
     
     response = HttpResponse(content_type='application/pdf')
@@ -1282,23 +1674,14 @@ def generar_recibo_pago_pdf(request, pago_id):
 
 def registro_publico(request):
     if request.method == 'POST':
-        # Usamos el nombre correcto de tu formulario
         form = RegistroPublicoForm(request.POST) 
         
         if form.is_valid():
-            # Guardamos el nuevo usuario en la base de datos
             usuario = form.save()
-            
-            # ✨ MAGIA DE AUTO-LOGIN ✨
             login(request, usuario)
-            
-            # Un mensajito de bienvenida nunca está de más
             messages.success(request, f'¡Bienvenido crack! Tu cuenta ha sido creada y ya estás dentro.')
-            
-            # Lo mandamos directo al dashboard
             return redirect('dashboard') 
     else:
-        # Si recién entra a la página, le mostramos el formulario vacío
         form = RegistroPublicoForm()
         
     return render(request, 'registration/registro_publico.html', {'form': form})
@@ -1357,11 +1740,16 @@ def reservar_cancha(request):
                             estado = 'TORNEO'
                             break
 
+            # 🟢 CÁLCULO DE DESCUENTO 50% PARA DIRIGENTES
+            precio_mostrar = float(tarifa.precio)
+            if hasattr(request.user, 'perfil') and request.user.perfil.rol == 'DIR':
+                precio_mostrar = precio_mostrar * 0.60
+
             horarios_disponibles.append({
                 'hora_mostrar': f"{hora_actual.strftime('%H:%M')} - {hora_siguiente.strftime('%H:%M')}",
                 'valor_inicio': hora_actual.strftime('%H:%M'),
                 'valor_fin': hora_siguiente.strftime('%H:%M'),
-                'precio': tarifa.precio,
+                'precio': precio_mostrar,
                 'estado': estado
             })
 
@@ -1371,26 +1759,33 @@ def reservar_cancha(request):
         hora_inicio_str = request.POST.get('hora_inicio')
         hora_fin_str = request.POST.get('hora_fin')
         fecha_str_post = request.POST.get('fecha')
+        # 🔥 CAPTURAMOS EL PRECIO REAL DESDE EL HTML (El que sumó JavaScript)
+        precio_total_post = request.POST.get('precio_total')
+        codigo_cupon = request.POST.get('codigo_cupon', '') # Opcional
         
-        if hora_inicio_str and hora_fin_str and fecha_str_post:
-            hora_inicio_post = datetime.strptime(hora_inicio_str, '%H:%M').time()
+        if hora_inicio_str and hora_fin_str and fecha_str_post and precio_total_post:
             
-            horario_seleccionado = HorarioCancha.objects.filter(
-                hora_inicio__lte=hora_inicio_post, 
-                hora_fin__gt=hora_inicio_post
-            ).first()
+            # Convierte el string a float para asegurarnos de que es un número
+            try:
+                precio_base = float(precio_total_post)
+            except ValueError:
+                messages.error(request, "⚠️ Error: El precio total no es válido.")
+                return redirect(f"{request.path}?fecha={fecha_str_post}")
+
+            # 🟢 Aplicar descuento DIRIGENTE si corresponde (Aplica sobre el total sumado)
+            precio_final = str(precio_base)
             
-            precio_final = str(horario_seleccionado.precio) if horario_seleccionado else "5.00"
-            
+            # Guardamos todo el paquete exacto en la sesión para el checkout
             request.session['reserva_pendiente'] = {
                 'fecha': fecha_str_post,
                 'hora_inicio': hora_inicio_str,
                 'hora_fin': hora_fin_str,
-                'precio_fijo': precio_final
+                'precio_fijo': precio_final, # ¡Aquí viaja el valor correcto!
+                'cupon': codigo_cupon
             }
             return redirect('checkout_pago')
         else:
-            messages.error(request, "⚠️ Error: Faltan datos en la selección.")
+            messages.error(request, "⚠️ Error: Faltan datos en la selección o no se calculó el precio.")
             
     else:
         form = ReservaCanchaForm(initial={'fecha': fecha_consulta})
@@ -1447,29 +1842,29 @@ Cliente: {nombre_cliente}
 Celular: {telefono_cliente}
 Fecha: {reserva_data['fecha']}
 Horario: {reserva_data['hora_inicio']} a {reserva_data['hora_fin']}
-Total a cobrar: ${precio_final}
+Total a cobrar: ${reserva.precio_total}  
             """
             send_mail(
                 subject=asunto, 
                 message=mensaje_correo,
                 from_email=settings.EMAIL_HOST_USER,
-                recipient_list=['TU_CORREO_AQUI@gmail.com'], 
+                recipient_list=['deyvi2413@gmail.com'], 
                 fail_silently=True
             )
         except Exception as e:
             print("Error enviando email de reserva:", e)
 
         mensaje = (
-            f" *NUEVA RESERVA - CANCHA EL CHULO* \n\n"
+            f" *NUEVA RESERVA - NEXT LEVEL* \n\n"
             f" *Cliente:* {nombre_cliente}\n"
             f" *Celular:* {telefono_cliente}\n"
             f" *Fecha:* {reserva_data['fecha']}\n"
             f" *Horario:* {reserva_data['hora_inicio']} a {reserva_data['hora_fin']}\n"
-            f" *Total a pagar:* ${precio_final}\n\n"
+            f" *Total a pagar:* ${reserva.precio_total}\n\n"
             f"Hola, adjunto el comprobante de transferencia para confirmar mi turno."
         )
 
-        numero_organizador = "593964049283" 
+        numero_organizador = "593963395614" 
         mensaje_codificado = urllib.parse.quote(mensaje)
         url_whatsapp = f"https://wa.me/{numero_organizador}?text={mensaje_codificado}"
 
@@ -1498,21 +1893,27 @@ def mis_reservas(request):
     return render(request, 'core/mis_reservas.html', {'reservas': reservas})
 
 def ver_torneos_activos(request):
-    torneos = Torneo.objects.filter(activo=True, inscripcion_abierta=True)
+    # 🔥 ORDENAMOS POR CATEGORÍA DESDE LA BASE DE DATOS
+    torneos_activos = Torneo.objects.filter(activo=True).order_by('categoria__nombre', 'fecha_inicio')
+    torneos_finalizados = Torneo.objects.filter(activo=False).order_by('-fecha_inicio')
     
     mis_torneos_ids = []
-    if request.user.is_authenticated:
+    if request.user.is_authenticated and hasattr(request.user, 'perfil') and request.user.perfil.rol == 'DIR':
         mis_torneos_ids = list(Equipo.objects.filter(dirigente=request.user).values_list('torneo_id', flat=True))
 
     return render(request, 'core/ver_torneos_activos.html', {
-        'torneos': torneos,
+        'torneos_activos': torneos_activos,
+        'torneos_finalizados': torneos_finalizados,
         'mis_torneos_ids': mis_torneos_ids 
     })
-
 
 @login_required
 def solicitar_inscripcion(request, torneo_id):
     torneo = get_object_or_404(Torneo, id=torneo_id)
+    
+    if not torneo.inscripcion_abierta:
+        messages.error(request, f'Lo sentimos, las inscripciones para el torneo {torneo.nombre} ya están cerradas.')
+        return redirect('ver_torneos_activos')
     
     ya_inscrito = Equipo.objects.filter(torneo=torneo, dirigente=request.user).exists()
     if ya_inscrito:
@@ -1526,22 +1927,22 @@ def solicitar_inscripcion(request, torneo_id):
             equipo.torneo = torneo
             equipo.dirigente = request.user
             equipo.estado_inscripcion = 'PENDIENTE' 
-            equipo.puede_fichar = False              
             equipo.save()
 
-            costo_inscripcion = getattr(torneo, 'precio_inscripcion', Decimal('50.00')) 
+            if not torneo.cobro_por_jugador:
+                costo_inscripcion = getattr(torneo, 'costo_inscripcion', Decimal('50.00')) 
 
-            Sancion.objects.get_or_create(
-                equipo=equipo,
-                torneo=torneo,
-                descripcion=f"Inscripción - {torneo.nombre}",
-                defaults={
-                    'tipo': 'ADMIN',
-                    'monto': costo_inscripcion,
-                    'monto_pagado': Decimal('0.00'),
-                    'pagada': False
-                }
-            )
+                Sancion.objects.get_or_create(
+                    equipo=equipo,
+                    torneo=torneo,
+                    descripcion=f"Inscripción - {torneo.nombre}",
+                    defaults={
+                        'tipo': 'ADMIN',
+                        'monto': costo_inscripcion,
+                        'monto_pagado': Decimal('0.00'),
+                        'pagada': False
+                    }
+                )
             
             if hasattr(request.user, 'perfil') and request.user.perfil.rol == 'FAN':
                 request.user.perfil.rol = 'DIR'
@@ -1552,20 +1953,13 @@ def solicitar_inscripcion(request, torneo_id):
                 from django.conf import settings
                 
                 asunto = f"🏆 NUEVA SOLICITUD: {equipo.nombre} quiere unirse"
-                telefono_dt = getattr(equipo, 'telefono_contacto', 'No ingresó celular')
-                
-                mensaje = f"""
-¡Hola Organizador!
-Tienes una nueva solicitud de inscripción.
-Torneo: {torneo.nombre}
-Equipo: {equipo.nombre}
-                """
+                # ... (texto del mensaje) ...
                 
                 send_mail(
                     subject=asunto,
                     message=mensaje,
                     from_email=settings.EMAIL_HOST_USER,
-                    recipient_list=['TU_CORREO_AQUI@gmail.com'], 
+                    recipient_list=['deyvi2413@gmail.com'], # ¡Aquí está tu correo!
                     fail_silently=True 
                 )
             except Exception as e:
@@ -1592,9 +1986,8 @@ def gestionar_solicitudes(request):
         
         if accion == 'APROBAR':
             equipo.estado_inscripcion = 'APROBADO'
-            equipo.puede_fichar = True  
             equipo.save()
-            messages.success(request, f'✅ {equipo.nombre} APROBADO. Ya pueden fichar jugadores.')
+            messages.success(request, f'✅ {equipo.nombre} APROBADO.')
 
         elif accion == 'RECHAZAR':
             equipo.estado_inscripcion = 'RECHAZADO'
@@ -1691,8 +2084,7 @@ def cancelar_inscripcion_equipo(request, equipo_id):
 
 @login_required
 def cobrar_sancion(request, sancion_id):
-    # PERMITIR AHORA A ORGANIZADORES Y VOCALES DE MESA COBRAR
-    if request.user.perfil.rol not in ['ORG', 'VOC']:
+    if request.user.perfil.rol != 'ORG':
         return redirect('dashboard')
         
     sancion = get_object_or_404(Sancion, id=sancion_id)
@@ -1706,9 +2098,9 @@ def cobrar_sancion(request, sancion_id):
         if sancion.monto_pagado >= sancion.monto:
             sancion.pagada = True
             sancion.monto_pagado = sancion.monto 
-            messages.success(request, f"✅ ¡Deuda de {sancion.equipo.nombre} cancelada en su totalidad!")
+            messages.success(request, f"¡Deuda de {sancion.equipo.nombre} cancelada en su totalidad!")
         else:
-            messages.success(request, f"💰 Abono de ${abono} registrado. Saldo pendiente: ${sancion.saldo}")
+            messages.success(request, f"Abono de ${abono} registrado. Saldo pendiente: ${sancion.saldo}")
             
         sancion.save()
 
@@ -1725,49 +2117,63 @@ def gestionar_finanzas(request):
     if request.user.perfil.rol != 'ORG':
         return redirect('dashboard')
         
+    # --- 1. LÓGICA PARA NUEVA DEUDA MANUAL ---
+    if request.method == 'POST' and 'agregar_sancion_manual' in request.POST:
+        form_sancion = SancionManualForm(request.POST)
+        if form_sancion.is_valid():
+            nueva_sancion = form_sancion.save(commit=False)
+            nueva_sancion.tipo = 'ADMIN' # Tipo administrativo
+            nueva_sancion.pagada = False
+            from decimal import Decimal
+            nueva_sancion.monto_pagado = Decimal('0.00')
+            nueva_sancion.save()
+            messages.success(request, f'✅ Sanción de ${nueva_sancion.monto} agregada a {nueva_sancion.equipo.nombre} ({nueva_sancion.descripcion}).')
+            return redirect('gestionar_finanzas')
+        else:
+            messages.error(request, '❌ Error al agregar la deuda. Revisa los campos.')
+
+    # --- 2. LÓGICA EXISTENTE PARA GENERAR INSCRIPCIONES ---
     if request.method == 'POST' and 'generar_inscripciones_viejas' in request.POST:
         equipos_aprobados = Equipo.objects.filter(estado_inscripcion='APROBADO')
         agregados = 0
+        from decimal import Decimal
         for eq in equipos_aprobados:
             ya_cobrado = Sancion.objects.filter(equipo=eq, descripcion__icontains='Inscripci').exists()
-            if not ya_cobrado:
+            if not ya_cobrado and not eq.torneo.cobro_por_jugador:
                 Sancion.objects.create(
-                    torneo=eq.torneo,
-                    equipo=eq,
-                    tipo='ADMIN',
-                    monto=getattr(eq.torneo, 'precio_inscripcion', Decimal('50.00')),
-                    monto_pagado=Decimal('0.00'),
-                    descripcion=f"Inscripción al Torneo {eq.torneo.nombre}",
-                    pagada=False
+                    torneo=eq.torneo, equipo=eq, tipo='ADMIN',
+                    monto=getattr(eq.torneo, 'costo_inscripcion', Decimal('50.00')),
+                    monto_pagado=Decimal('0.00'), descripcion=f"Inscripción al Torneo {eq.torneo.nombre}", pagada=False
                 )
                 agregados += 1
-        
-        messages.success(request, f'✅ Se generaron {agregados} recibos de inscripción para los equipos antiguos.')
+        messages.success(request, f'✅ Se generaron {agregados} recibos de inscripción para los equipos.')
         return redirect('gestionar_finanzas')
 
+    # Instanciamos el formulario vacío para mandarlo al HTML
+    form_sancion = SancionManualForm()
+
+    # --- CÁLCULOS MATEMÁTICOS EXISTENTES ---
+    from decimal import Decimal
     total_reservas = ReservaCancha.objects.filter(estado='ACTIVA', es_torneo=False).aggregate(Sum('precio_total'))['precio_total__sum'] or Decimal('0.00')
     
     inscripciones = Sancion.objects.filter(descripcion__icontains='Inscripci')
-    
     inscripciones_pagadas_totalmente = inscripciones.filter(pagada=True).aggregate(Sum('monto'))['monto__sum'] or Decimal('0.00')
     abonos_inscripciones = inscripciones.filter(pagada=False).aggregate(Sum('monto_pagado'))['monto_pagado__sum'] or Decimal('0.00')
     dinero_real_inscripciones = inscripciones_pagadas_totalmente + abonos_inscripciones
-    
     inscripciones_pendientes = inscripciones.filter(pagada=False).aggregate(Sum('monto'))['monto__sum'] or Decimal('0.00')
     saldo_real_inscripciones = inscripciones_pendientes - abonos_inscripciones
     
     multas = Sancion.objects.exclude(descripcion__icontains='Inscripci')
-    
     multas_pagadas_totalmente = multas.filter(pagada=True).aggregate(Sum('monto'))['monto__sum'] or Decimal('0.00')
     abonos_multas = multas.filter(pagada=False).aggregate(Sum('monto_pagado'))['monto_pagado__sum'] or Decimal('0.00')
     dinero_real_multas = multas_pagadas_totalmente + abonos_multas
-    
     multas_pendientes = multas.filter(pagada=False).aggregate(Sum('monto'))['monto__sum'] or Decimal('0.00')
     saldo_real_multas = multas_pendientes - abonos_multas
     
     lista_sanciones = Sancion.objects.all().select_related('equipo').order_by('pagada', '-id')
 
     ctx = {
+        'form_sancion': form_sancion, # <--- ENVIAMOS EL FORMULARIO AL HTML
         'ingreso_canchas': float(total_reservas),
         'inscripciones_pagadas': float(dinero_real_inscripciones),
         'inscripciones_pendientes': float(saldo_real_inscripciones),
@@ -1780,20 +2186,40 @@ def gestionar_finanzas(request):
 
 @login_required
 def admin_gestion_jugadores(request):
+    # 1. Seguridad: Solo organizadores
     if request.user.perfil.rol != 'ORG':
         return redirect('dashboard')
         
-    query = request.GET.get('q')
-    jugadores = Jugador.objects.all().select_related('equipo').order_by('equipo', 'dorsal')
+    query = request.GET.get('q', '')
     
+    # 2. OPTIMIZACIÓN BD: select_related('equipo') para traer la info del equipo rápido.
+    # Ordenamos por el nombre del equipo y luego por dorsal.
+    jugadores_list = Jugador.objects.select_related('equipo').order_by('equipo__nombre', 'dorsal')
+    
+    # 3. Lógica de Búsqueda
     if query:
-        jugadores = jugadores.filter(
+        jugadores_list = jugadores_list.filter(
             Q(nombres__icontains=query) |  
             Q(equipo__nombre__icontains=query) |
             Q(cedula__icontains=query)
         )
 
-    return render(request, 'core/admin_jugadores.html', {'jugadores': jugadores})
+    # 4. Conteo eficiente en base de datos
+    total_jugadores = jugadores_list.count()
+    
+    # 5. PAGINACIÓN: Mostramos 20 jugadores por página
+    paginator = Paginator(jugadores_list, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # 6. Contexto enviado al HTML
+    context = {
+        'jugadores': page_obj,         # La lista paginada
+        'total_jugadores': total_jugadores, 
+        'query': query,                # Para mantener la búsqueda activa en la paginación
+    }
+
+    return render(request, 'core/admin_jugadores.html', context)
 
 @login_required
 def admin_gestion_usuarios(request):
@@ -1918,7 +2344,10 @@ def proxima_jornada(request, torneo_id):
 
 
 # =========================================================
-# 8. GENERADOR AUTOMÁTICO DE FIXTURES (ALGORITMO DE RUEDA)
+# 8. GENERADOR AUTOMÁTICO DE FIXTURES (IDA Y VUELTA)
+# =========================================================
+# =========================================================
+# 8. GENERADOR AUTOMÁTICO DE FIXTURES (FASE 1)
 # =========================================================
 
 @login_required
@@ -1938,6 +2367,7 @@ def generar_fixture(request, torneo_id):
     fixture = []
     equipos_rotacion = equipos.copy()
 
+    # 1. Generamos los partidos de IDA
     for fecha in range(1, n):
         partidos_fecha = []
         for i in range(n // 2):
@@ -1950,18 +2380,41 @@ def generar_fixture(request, torneo_id):
         fixture.append({'numero_fecha': fecha, 'partidos': partidos_fecha})
         equipos_rotacion.insert(1, equipos_rotacion.pop())
 
+    # 2. Si se mandó el formulario (Botón Guardar DB)
     if request.method == 'POST':
         accion = request.POST.get('accion')
+        
+        # Leemos el switch del HTML (¿Ida y Vuelta?)
+        ida_y_vuelta_activado = request.POST.get('ida_y_vuelta_f1') == 'on'
+        torneo.fase1_ida_vuelta = ida_y_vuelta_activado
+        torneo.save()
+
+        # Si es Ida y Vuelta, clonamos el fixture invirtiendo las localías
+        if torneo.fase1_ida_vuelta:
+            n_fechas_ida = len(fixture)
+            fixture_vuelta = []
+            for j in fixture:
+                partidos_vuelta = [{'local': p['visita'], 'visita': p['local']} for p in j['partidos']]
+                fixture_vuelta.append({'numero_fecha': j['numero_fecha'] + n_fechas_ida, 'partidos': partidos_vuelta})
+            fixture.extend(fixture_vuelta)
+
         if accion == 'guardar_db':
             partidos_creados = 0
-            for jornada in fixture:
-                num_fecha = jornada['numero_fecha']
-                for p in jornada['partidos']:
-                    existe = Partido.objects.filter(torneo=torneo, etapa='F1', equipo_local=p['local'], equipo_visita=p['visita']).exists()
-                    if not existe:
-                        Partido.objects.create(torneo=torneo, etapa='F1', numero_fecha=num_fecha, equipo_local=p['local'], equipo_visita=p['visita'], estado='PROG', fecha_hora=None)
-                        partidos_creados += 1
-            messages.success(request, f'✅ Fixture generado: {partidos_creados} partidos creados en el calendario. Ahora puedes asignarles fecha y hora.')
+            with transaction.atomic():
+                for jornada in fixture:
+                    num_fecha = jornada['numero_fecha']
+                    for p in jornada['partidos']:
+                        existe = Partido.objects.filter(torneo=torneo, etapa='F1', equipo_local=p['local'], equipo_visita=p['visita']).exists()
+                        if not existe:
+                            Partido.objects.create(
+                                torneo=torneo, etapa='F1', numero_fecha=num_fecha, 
+                                equipo_local=p['local'], equipo_visita=p['visita'], 
+                                estado='PROG', fecha_hora=None
+                            )
+                            partidos_creados += 1
+            
+            formato_texto = "IDA Y VUELTA" if torneo.fase1_ida_vuelta else "SOLO IDA"
+            messages.success(request, f'✅ Fixture generado en formato {formato_texto}: {partidos_creados} partidos agregados al calendario.')
             return redirect(f"/programar/?torneo={torneo.id}")
             
         elif accion == 'descargar_pdf':
@@ -1977,9 +2430,29 @@ def generar_fixture(request, torneo_id):
 
     return render(request, 'core/generar_fixture.html', {'torneo': torneo, 'fixture': fixture, 'total_equipos': len(equipos) if None not in equipos else (len(equipos) - 1)})
 
+
 # =========================================================
-# 9. MAGIA: CUARTOS, SEMIS Y FINALES (LLAVES PROFESIONALES)
+# 9. MAGIA: TRANSICIONES Y LLAVES ELIMINATORIAS 
 # =========================================================
+
+# --- FUNCIONES DE CÁLCULO MATEMÁTICO ---
+def obtener_clasificados_fase1(torneo):
+    equipos = Equipo.objects.filter(torneo=torneo, estado_inscripcion='APROBADO')
+    lista_tabla = []
+    for equipo in equipos:
+        partidos = Partido.objects.filter(Q(equipo_local=equipo) | Q(equipo_visita=equipo), estado__in=['JUG', 'WO', 'FINALIZADO'], etapa='F1')
+        pj=0; pg=0; pe=0; gf=0; gc=0
+        for p in partidos:
+            pj+=1
+            es_local = (p.equipo_local == equipo)
+            goles_pro = p.goles_local if es_local else p.goles_visita
+            goles_rival = p.goles_visita if es_local else p.goles_local
+            gf+=goles_pro; gc+=goles_rival
+            if goles_pro > goles_rival: pg+=1
+            elif goles_pro == goles_rival: pe+=1
+        pts = (pg * 3) + (pe * 1)
+        lista_tabla.append({'equipo': equipo, 'pts': pts, 'gd': gf-gc, 'gf': gf})
+    return sorted(lista_tabla, key=lambda x: (x['pts'], x['gd'], x['gf']), reverse=True)
 
 def obtener_clasificados_fase2(torneo, letra_grupo):
     equipos_grupo = Equipo.objects.filter(torneo=torneo, grupo_fase2=letra_grupo, estado_inscripcion='APROBADO')
@@ -2002,12 +2475,10 @@ def obtener_clasificados_fase2(torneo, letra_grupo):
 def obtener_ganador_llave(torneo, etapa, eq1, eq2):
     partidos = Partido.objects.filter(torneo=torneo, etapa=etapa, equipo_local__in=[eq1, eq2], equipo_visita__in=[eq1, eq2])
     if not partidos.exists(): return None
-    
     for p in partidos:
         if p.estado not in ['JUG', 'WO', 'FINALIZADO']: return None
 
     goles_eq1 = 0; goles_eq2 = 0; penales_eq1 = 0; penales_eq2 = 0
-
     for p in partidos:
         if p.equipo_local == eq1:
             goles_eq1 += p.goles_local; goles_eq2 += p.goles_visita
@@ -2023,6 +2494,88 @@ def obtener_ganador_llave(torneo, etapa, eq1, eq2):
         elif penales_eq2 > penales_eq1: return eq2
     return None 
 
+# =========================================================
+# VISTAS DE TRANSICIÓN DIRECTA (CON FIXTURE)
+# =========================================================
+
+@login_required
+@user_passes_test(es_organizador)
+def generar_cuartos_directos(request, torneo_id):
+    torneo = get_object_or_404(Torneo, id=torneo_id)
+    ida_y_vuelta = request.POST.get('ida_y_vuelta') == 'on'
+
+    clasificados = obtener_clasificados_fase1(torneo) 
+    
+    if len(clasificados) < 8:
+        messages.error(request, "⚠️ Mínimo 8 equipos registrados con resultados para hacer Cuartos de Final.")
+        return redirect('tabla_posiciones', torneo_id=torneo.id)
+    
+    cruces = [
+        (clasificados[0]['equipo'], clasificados[7]['equipo']),
+        (clasificados[1]['equipo'], clasificados[6]['equipo']),
+        (clasificados[2]['equipo'], clasificados[5]['equipo']),
+        (clasificados[3]['equipo'], clasificados[4]['equipo']),
+    ]
+
+    fixture = []
+    fixture.append({'numero_fecha': 'IDA (Cuartos)', 'partidos': [{'local': c[0], 'visita': c[1]} for c in cruces]})
+    if torneo.fase3_ida_vuelta:
+        fixture.append({'numero_fecha': 'VUELTA (Cuartos)', 'partidos': [{'local': c[1], 'visita': c[0]} for c in cruces]})
+
+    if request.method == 'POST' and request.POST.get('accion') == 'guardar_db':
+        with transaction.atomic():
+            for local, visita in cruces:
+                Partido.objects.create(torneo=torneo, equipo_local=local, equipo_visita=visita, etapa='4TOS', numero_fecha=1)
+                if torneo.fase3_ida_vuelta:
+                    Partido.objects.create(torneo=torneo, equipo_local=visita, equipo_visita=local, etapa='4TOS', numero_fecha=2)
+
+        formato = "Ida y Vuelta" if torneo.fase3_ida_vuelta else "Partido Único"
+        messages.success(request, f"✅ Cuartos de final ({formato}) generados y guardados en el calendario.")
+        return redirect('llaves_eliminatorias', torneo_id=torneo.id)
+
+    return render(request, 'core/generar_fixture.html', {'torneo': torneo, 'fixture': fixture, 'total_equipos': 8})
+
+@login_required
+@user_passes_test(es_organizador)
+def generar_semis_directas(request, torneo_id):
+    torneo = get_object_or_404(Torneo, id=torneo_id)
+    if Partido.objects.filter(torneo=torneo, etapa='SEMI').exists():
+        messages.error(request, "Las Semifinales ya fueron generadas.")
+        return redirect(f"/programar/?torneo={torneo.id}")
+
+    if 'ida_y_vuelta' in request.POST and request.POST.get('accion') != 'guardar_db':
+        torneo.fase3_ida_vuelta = request.POST.get('ida_y_vuelta') == 'on'
+        torneo.save()
+
+    clasificados = obtener_clasificados_fase1(torneo)
+    if len(clasificados) < 4:
+        messages.error(request, "⚠️ Mínimo 4 equipos con resultados para generar Semifinales.")
+        return redirect('tabla_posiciones', torneo_id=torneo.id)
+
+    cruces = [
+        (clasificados[0]['equipo'], clasificados[3]['equipo']),
+        (clasificados[1]['equipo'], clasificados[2]['equipo']),
+    ]
+
+    fixture = []
+    fixture.append({'numero_fecha': 'IDA (Semifinal)', 'partidos': [{'local': c[0], 'visita': c[1]} for c in cruces]})
+    if torneo.fase3_ida_vuelta:
+        fixture.append({'numero_fecha': 'VUELTA (Semifinal)', 'partidos': [{'local': c[1], 'visita': c[0]} for c in cruces]})
+
+    if request.method == 'POST' and request.POST.get('accion') == 'guardar_db':
+        with transaction.atomic():
+            for local, visita in cruces:
+                Partido.objects.create(torneo=torneo, equipo_local=local, equipo_visita=visita, etapa='SEMI', numero_fecha=1)
+                if torneo.fase3_ida_vuelta:
+                    Partido.objects.create(torneo=torneo, equipo_local=visita, equipo_visita=local, etapa='SEMI', numero_fecha=2)
+
+        formato = "Ida y Vuelta" if torneo.fase3_ida_vuelta else "Partido Único"
+        messages.success(request, f"✅ Semifinales ({formato}) generadas y guardadas en el calendario.")
+        return redirect('llaves_eliminatorias', torneo_id=torneo.id)
+        
+    return render(request, 'core/generar_fixture.html', {'torneo': torneo, 'fixture': fixture, 'total_equipos': 4})
+
+
 @login_required
 @user_passes_test(es_organizador)
 def generar_cuartos_final(request, torneo_id):
@@ -2031,15 +2584,15 @@ def generar_cuartos_final(request, torneo_id):
         messages.error(request, "Los Cuartos de Final ya fueron generados.")
         return redirect(f"/programar/?torneo={torneo.id}")
 
-    ida_y_vuelta = request.POST.get('ida_y_vuelta') == 'on'
-    torneo.fase3_ida_vuelta = ida_y_vuelta
-    torneo.save()
+    if 'ida_y_vuelta' in request.POST and request.POST.get('accion') != 'guardar_db':
+        torneo.fase3_ida_vuelta = request.POST.get('ida_y_vuelta') == 'on'
+        torneo.save()
 
     clasificados_a = obtener_clasificados_fase2(torneo, 'A')
     clasificados_b = obtener_clasificados_fase2(torneo, 'B')
 
     if len(clasificados_a) < 4 or len(clasificados_b) < 4:
-        messages.error(request, "Aún no hay 4 equipos clasificados en cada grupo.")
+        messages.error(request, "Aún no hay 4 equipos clasificados en cada grupo de la Fase 2.")
         return redirect('tabla_posiciones_f2', torneo_id=torneo.id)
 
     cruces = [
@@ -2049,18 +2602,24 @@ def generar_cuartos_final(request, torneo_id):
         (clasificados_a[3]['equipo'], clasificados_b[0]['equipo'])  
     ]
 
-    partidos_creados = 0
-    with transaction.atomic():
-        for local, visita in cruces:
-            Partido.objects.create(torneo=torneo, etapa='4TOS', numero_fecha=1, equipo_local=local, equipo_visita=visita)
-            partidos_creados += 1
-            if torneo.fase3_ida_vuelta:
-                Partido.objects.create(torneo=torneo, etapa='4TOS', numero_fecha=2, equipo_local=visita, equipo_visita=local)
-                partidos_creados += 1
+    fixture = []
+    fixture.append({'numero_fecha': 'IDA (Cuartos Cross-Grupos)', 'partidos': [{'local': c[0], 'visita': c[1]} for c in cruces]})
+    if torneo.fase3_ida_vuelta:
+        fixture.append({'numero_fecha': 'VUELTA (Cuartos Cross-Grupos)', 'partidos': [{'local': c[1], 'visita': c[0]} for c in cruces]})
 
-    formato_texto = "Ida y Vuelta" if ida_y_vuelta else "Partido Único"
-    messages.success(request, f'✅ Cuartos de Final generados con éxito ({formato_texto}). Se crearon {partidos_creados} partidos.')
-    return redirect(f"/programar/?torneo={torneo.id}")
+    if request.method == 'POST' and request.POST.get('accion') == 'guardar_db':
+        with transaction.atomic():
+            for local, visita in cruces:
+                Partido.objects.create(torneo=torneo, etapa='4TOS', numero_fecha=1, equipo_local=local, equipo_visita=visita)
+                if torneo.fase3_ida_vuelta:
+                    Partido.objects.create(torneo=torneo, etapa='4TOS', numero_fecha=2, equipo_local=visita, equipo_visita=local)
+
+        formato_texto = "Ida y Vuelta" if torneo.fase3_ida_vuelta else "Partido Único"
+        messages.success(request, f'✅ Cuartos de Final ({formato_texto}) generados con éxito.')
+        return redirect(f"/programar/?torneo={torneo.id}")
+
+    return render(request, 'core/generar_fixture.html', {'torneo': torneo, 'fixture': fixture, 'total_equipos': 8})
+
 
 @login_required
 @user_passes_test(es_organizador)
@@ -2070,6 +2629,10 @@ def generar_semifinales(request, torneo_id):
         messages.error(request, "Las Semifinales ya fueron generadas.")
         return redirect(f"/programar/?torneo={torneo.id}")
     
+    if 'ida_y_vuelta' in request.POST and request.POST.get('accion') != 'guardar_db':
+        torneo.fase3_ida_vuelta = request.POST.get('ida_y_vuelta') == 'on'
+        torneo.save()
+
     clas_a = obtener_clasificados_fase2(torneo, 'A')
     clas_b = obtener_clasificados_fase2(torneo, 'B')
     
@@ -2082,12 +2645,26 @@ def generar_semifinales(request, torneo_id):
         messages.error(request, "Aún no terminan los Cuartos, o hay empates globales sin definir por penales en el Acta.")
         return redirect(f"/programar/?torneo={torneo.id}")
 
-    with transaction.atomic():
-        Partido.objects.create(torneo=torneo, etapa='SEMI', equipo_local=g_s1, equipo_visita=g_s3)
-        Partido.objects.create(torneo=torneo, etapa='SEMI', equipo_local=g_s4, equipo_visita=g_s2)
+    cruces = [(g_s1, g_s3), (g_s4, g_s2)]
 
-    messages.success(request, '✅ Semifinales (a partido único) generadas con éxito.')
-    return redirect(f"/programar/?torneo={torneo.id}")
+    fixture = []
+    fixture.append({'numero_fecha': 'IDA (Semifinal Cross)', 'partidos': [{'local': c[0], 'visita': c[1]} for c in cruces]})
+    if torneo.fase3_ida_vuelta:
+        fixture.append({'numero_fecha': 'VUELTA (Semifinal Cross)', 'partidos': [{'local': c[1], 'visita': c[0]} for c in cruces]})
+
+    if request.method == 'POST' and request.POST.get('accion') == 'guardar_db':
+        with transaction.atomic():
+            for local, visita in cruces:
+                Partido.objects.create(torneo=torneo, etapa='SEMI', numero_fecha=1, equipo_local=local, equipo_visita=visita)
+                if torneo.fase3_ida_vuelta:
+                    Partido.objects.create(torneo=torneo, etapa='SEMI', numero_fecha=2, equipo_local=visita, equipo_visita=local)
+
+        formato_texto = "Ida y Vuelta" if torneo.fase3_ida_vuelta else "Partido Único"
+        messages.success(request, f'✅ Semifinales ({formato_texto}) generadas con éxito.')
+        return redirect(f"/programar/?torneo={torneo.id}")
+
+    return render(request, 'core/generar_fixture.html', {'torneo': torneo, 'fixture': fixture, 'total_equipos': 4})
+
 
 @login_required
 @user_passes_test(es_organizador)
@@ -2097,34 +2674,37 @@ def generar_finales(request, torneo_id):
         messages.error(request, "Las Finales ya fueron generadas.")
         return redirect(f"/programar/?torneo={torneo.id}")
 
-    semis = Partido.objects.filter(torneo=torneo, etapa='SEMI')
-    if semis.count() != 2:
+    semis_ida = Partido.objects.filter(torneo=torneo, etapa='SEMI', numero_fecha=1)
+    if semis_ida.count() != 2:
         messages.error(request, "Faltan datos de las semifinales.")
         return redirect(f"/programar/?torneo={torneo.id}")
 
     ganadores = []; perdedores = []
-    for s in semis:
-        if s.estado not in ['JUG', 'WO', 'FINALIZADO']:
-            messages.error(request, "Las semifinales aún no han concluido o falta firmar el acta.")
+    for s in semis_ida:
+        g_semi = obtener_ganador_llave(torneo, 'SEMI', s.equipo_local, s.equipo_visita)
+        if not g_semi:
+            messages.error(request, f"La llave de {s.equipo_local} vs {s.equipo_visita} no se ha decidido.")
             return redirect(f"/programar/?torneo={torneo.id}")
+            
+        ganadores.append(g_semi)
+        perdedores.append(s.equipo_visita if s.equipo_local == g_semi else s.equipo_local)
+
+    fixture = [
+        {'numero_fecha': 'TERCER LUGAR (Partido Único)', 'partidos': [{'local': perdedores[0], 'visita': perdedores[1]}]},
+        {'numero_fecha': 'GRAN FINAL (Partido Único)', 'partidos': [{'local': ganadores[0], 'visita': ganadores[1]}]}
+    ]
+
+    if request.method == 'POST' and request.POST.get('accion') == 'guardar_db':
+        with transaction.atomic():
+            # Finales y Tercer lugar se juegan a partido único SIEMPRE.
+            Partido.objects.create(torneo=torneo, etapa='TERC', equipo_local=perdedores[0], equipo_visita=perdedores[1], numero_fecha=1)
+            Partido.objects.create(torneo=torneo, etapa='FINAL', equipo_local=ganadores[0], equipo_visita=ganadores[1], numero_fecha=1)
+
+        messages.success(request, '🏆 ¡Gran Final y 3er Lugar generados a Partido Único!')
+        return redirect(f"/programar/?torneo={torneo.id}")
         
-        goles_l = s.goles_local; goles_v = s.goles_visita
-        pen_l = s.penales_local if s.hubo_penales else 0
-        pen_v = s.penales_visita if s.hubo_penales else 0
+    return render(request, 'core/generar_fixture.html', {'torneo': torneo, 'fixture': fixture, 'total_equipos': 4})
 
-        if goles_l > goles_v or (goles_l == goles_v and pen_l > pen_v):
-            ganadores.append(s.equipo_local)
-            perdedores.append(s.equipo_visita)
-        else:
-            ganadores.append(s.equipo_visita)
-            perdedores.append(s.equipo_local)
-
-    with transaction.atomic():
-        Partido.objects.create(torneo=torneo, etapa='TERC', equipo_local=perdedores[0], equipo_visita=perdedores[1])
-        Partido.objects.create(torneo=torneo, etapa='FINAL', equipo_local=ganadores[0], equipo_visita=ganadores[1])
-
-    messages.success(request, '🏆 ¡Gran Final y 3er Lugar generados!')
-    return redirect(f"/programar/?torneo={torneo.id}")
 
 def llaves_eliminatorias(request, torneo_id):
     torneo = get_object_or_404(Torneo, id=torneo_id)
@@ -2136,316 +2716,367 @@ def llaves_eliminatorias(request, torneo_id):
         'torneo': torneo, 'cuartos': cuartos, 'semis': semis, 'tercer': tercer, 'final': final
     })
 
-# =========================================================
-# NUEVAS FUNCIONES: FASE 2 Y REVERSOS
-# =========================================================
-
-# =========================================================
-# FASE 2: FIXTURE Y REVERSO
-# =========================================================
-
 @login_required
-@user_passes_test(lambda u: u.perfil.rol == 'ORG')
-def revertir_fase2(request, torneo_id):
-    """ Deshace la creación de los grupos de la Fase 2 """
-    torneo = get_object_or_404(Torneo, id=torneo_id)
+def importar_equipo_existente(request, torneo_nuevo_id):
+    torneo_nuevo = get_object_or_404(Torneo, id=torneo_nuevo_id)
+    
+    mis_equipos_historicos = Equipo.objects.filter(
+        dirigente=request.user,
+        torneo__activo=False,
+        torneo__categoria=torneo_nuevo.categoria  
+    ).exclude(torneo=torneo_nuevo)
+
+    if not mis_equipos_historicos.exists():
+        cat_nombre = torneo_nuevo.categoria.nombre if torneo_nuevo.categoria else "Sin Categoría"
+        messages.warning(request, f"No tienes equipos en torneos finalizados de la categoría '{cat_nombre}' listos para importar.")
+        return redirect('ver_torneos_activos')
+
     if request.method == 'POST':
-        with transaction.atomic():
-            # 1. Borramos todos los partidos programados de la Fase 2
-            Partido.objects.filter(torneo=torneo, etapa='F2').delete()
-            # 2. Le quitamos el Grupo A y B a los equipos. Usamos "" para evitar el error NOT NULL
-            Equipo.objects.filter(torneo=torneo).update(grupo_fase2="")
-            
-        messages.warning(request, "🔄 Reverso exitoso: Se eliminaron los Grupos A y B de la Fase 2.")
-    return redirect('tabla_posiciones', torneo_id=torneo.id)
+        equipo_viejo_id = request.POST.get('equipo_id')
+        equipo_viejo = get_object_or_404(Equipo, id=equipo_viejo_id, dirigente=request.user)
 
-@login_required
-@user_passes_test(lambda u: u.perfil.rol == 'ORG')
-def revertir_llaves(request, torneo_id):
-    """ Deshace la creación de Cuartos, Semis y Finales """
-    torneo = get_object_or_404(Torneo, id=torneo_id)
-    if request.method == 'POST':
-        with transaction.atomic():
-            # Borramos cualquier partido que pertenezca a la etapa eliminatoria
-            Partido.objects.filter(torneo=torneo, etapa__in=['4TOS', 'SEMI', 'TERC', 'FINAL']).delete()
-            
-        messages.warning(request, "🔄 Reverso exitoso: Se eliminaron las llaves eliminatorias.")
-    return redirect('tabla_posiciones_f2', torneo_id=torneo.id)
+        if Equipo.objects.filter(torneo=torneo_nuevo, nombre=equipo_viejo.nombre).exists():
+            messages.error(request, f"El equipo '{equipo_viejo.nombre}' ya está inscrito (o en proceso) en este torneo.")
+            return redirect('ver_torneos_activos')
 
-@login_required
-@user_passes_test(es_organizador)
-def generar_fixture_fase2(request, torneo_id):
-    """ Genera el fixture intercalado A-B con rotación de horarios justa """
-    torneo = get_object_or_404(Torneo, id=torneo_id)
-    
-    equipos_a = list(Equipo.objects.filter(torneo=torneo, grupo_fase2='A', estado_inscripcion='APROBADO'))
-    equipos_b = list(Equipo.objects.filter(torneo=torneo, grupo_fase2='B', estado_inscripcion='APROBADO'))
-    
-    if not equipos_a or not equipos_b:
-        messages.error(request, "⚠️ Faltan equipos en los grupos. Debes generar la Fase 2 primero.")
-        return redirect('tabla_posiciones_f2', torneo_id=torneo.id)
-
-    def crear_fixture_grupo(equipos_grupo):
-        if len(equipos_grupo) % 2 != 0:
-            equipos_grupo.append(None) # Descanso
-        n = len(equipos_grupo)
-        fix = []
-        rotacion = equipos_grupo.copy()
-        
-        for fecha in range(1, n):
-            partidos_fecha = []
-            for i in range(n // 2):
-                local = rotacion[i]
-                visita = rotacion[n - 1 - i]
-                if local is not None and visita is not None:
-                    # Alternar localía
-                    if i == 0 and fecha % 2 == 0:
-                        partidos_fecha.append({'local': visita, 'visita': local})
-                    else:
-                        partidos_fecha.append({'local': local, 'visita': visita})
-            
-            # ✨ MAGIA 1: ROTACIÓN DE HORARIOS JUSTA ✨
-            # Rotamos la lista de partidos de esta fecha para que los equipos
-            # no jueguen siempre en el mismo orden (ej. a primera hora).
-            if partidos_fecha:
-                shift = fecha % len(partidos_fecha)
-                partidos_fecha = partidos_fecha[shift:] + partidos_fecha[:shift]
-                
-            fix.append(partidos_fecha)
-            rotacion.insert(1, rotacion.pop())
-        return fix
-
-    # Creamos fixtures base por grupo
-    fix_a = crear_fixture_grupo(equipos_a)
-    fix_b = crear_fixture_grupo(equipos_b)
-    
-    # ✨ MAGIA 2 y 3: INTERCALADO Y ALTERNANCIA SEMANAL ✨
-    max_fechas = max(len(fix_a), len(fix_b))
-    fixture_combinado = []
-    
-    for f in range(max_fechas):
-        partidos_comb = []
-        p_a = fix_a[f] if f < len(fix_a) else []
-        p_b = fix_b[f] if f < len(fix_b) else []
-        
-        semana = f + 1
-        empieza_grupo_A = (semana % 2 != 0) # Impar (1,3,5) empieza A. Par (2,4,6) empieza B.
-        
-        max_partidos_dia = max(len(p_a), len(p_b))
-        
-        for i in range(max_partidos_dia):
-            if empieza_grupo_A:
-                if i < len(p_a): partidos_comb.append(p_a[i]) # Va A
-                if i < len(p_b): partidos_comb.append(p_b[i]) # Va B
-            else:
-                if i < len(p_b): partidos_comb.append(p_b[i]) # Va B
-                if i < len(p_a): partidos_comb.append(p_a[i]) # Va A
-                
-        fixture_combinado.append({'numero_fecha': semana, 'partidos': partidos_comb})
-
-    # Lógica de Ida y Vuelta
-    if torneo.fase2_ida_vuelta:
-        fixture_vuelta = []
-        num_fechas_ida = len(fixture_combinado)
-        for f_index, jornada in enumerate(fixture_combinado):
-            partidos_vuelta = []
-            for p in jornada['partidos']:
-                partidos_vuelta.append({'local': p['visita'], 'visita': p['local']})
-            fixture_vuelta.append({'numero_fecha': num_fechas_ida + f_index + 1, 'partidos': partidos_vuelta})
-        fixture_combinado.extend(fixture_vuelta)
-
-    # Procesar guardado
-    if request.method == 'POST':
-        accion = request.POST.get('accion')
-        if accion == 'guardar_db':
-            Partido.objects.filter(torneo=torneo, etapa='F2').delete() # Reverso
-            
-            partidos_creados = 0
+        try:
             with transaction.atomic():
-                for jornada in fixture_combinado:
-                    num_fecha = jornada['numero_fecha']
-                    for p in jornada['partidos']:
-                        Partido.objects.create(
-                            torneo=torneo, 
-                            etapa='F2', 
-                            numero_fecha=num_fecha, 
-                            equipo_local=p['local'], 
-                            equipo_visita=p['visita'], 
-                            estado='PROG', 
-                            fecha_hora=None 
-                        )
-                        partidos_creados += 1
-            
-            messages.success(request, f'✅ ¡Fixture Fase 2 Generado! Se intercalaron horarios y grupos ({partidos_creados} partidos en total).')
-            return redirect(f"/programar/?torneo={torneo.id}")
+                nuevo_equipo = Equipo.objects.create(
+                    torneo=torneo_nuevo,
+                    dirigente=request.user,
+                    nombre=equipo_viejo.nombre,
+                    escudo=equipo_viejo.escudo, 
+                    telefono_contacto=equipo_viejo.telefono_contacto,
+                    nombre_suplente_1=equipo_viejo.nombre_suplente_1,
+                    nombre_suplente_2=equipo_viejo.nombre_suplente_2,
+                    estado_inscripcion='PENDIENTE'
+                )
 
-    return render(request, 'core/generar_fixture_fase2.html', {
-        'torneo': torneo, 
-        'fixture': fixture_combinado,
-        'ida_vuelta': torneo.fase2_ida_vuelta
+                costo_inscripcion = getattr(torneo_nuevo, 'costo_inscripcion', Decimal('0.00')) 
+                if not torneo_nuevo.cobro_por_jugador:
+                    Sancion.objects.create(
+                        torneo=torneo_nuevo, 
+                        equipo=nuevo_equipo, 
+                        tipo='ADMIN', 
+                        monto=costo_inscripcion, 
+                        descripcion=f"Inscripción - {torneo_nuevo.nombre}", 
+                        pagada=False
+                    )
+
+                jugadores_viejos = Jugador.objects.filter(equipo=equipo_viejo, expulsado_torneo=False)
+                jugadores_importados = 0
+
+                for j in jugadores_viejos:
+                    if not getattr(j, 'esta_sancionado', False):
+                        j.equipo = nuevo_equipo
+                        j.rojas_directas_acumuladas = 0
+                        j.partidos_suspension = 0
+                        j.expulsado_torneo = False
+                        j.sancionado_hasta = None 
+                        j.save()
+                        jugadores_importados += 1
+
+            messages.success(request, f"✅ ¡Renovación Exitosa! '{nuevo_equipo.nombre}' importado con {jugadores_importados} jugadores. Estado: PENDIENTE DE APROBACIÓN.")
+            return redirect('ver_torneos_activos')
+            
+        except Exception as e:
+            messages.error(request, f"Ocurrió un error al importar: {str(e)}")
+            return redirect('ver_torneos_activos')
+
+    return render(request, 'core/importar_equipo.html', {
+        'torneo': torneo_nuevo, 
+        'equipos_previos': mis_equipos_historicos
     })
 
 @login_required
-@user_passes_test(lambda u: u.perfil.rol == 'ORG')
-def generar_segunda_vuelta_f1(request, torneo_id):
+@user_passes_test(es_organizador)
+def revertir_transicion(request, torneo_id):
     torneo = get_object_or_404(Torneo, id=torneo_id)
     
-    if request.method == 'POST':
-        # 1. Obtenemos cómo quedó la tabla de la Vuelta 1 exactamente
-        # Reutilizamos tu lógica matemática para saber el Top 2
-        equipos = Equipo.objects.filter(torneo=torneo, estado_inscripcion='APROBADO')
-        tabla_v1 = []
-        for eq in equipos:
-            partidos_v1 = Partido.objects.filter(torneo=torneo, etapa='F1', vuelta=1, estado__in=['JUG', 'WO']).filter(Q(equipo_local=eq) | Q(equipo_visita=eq))
-            pts = sum([3 if (p.equipo_local == eq and p.goles_local > p.goles_visita) or (p.equipo_visita == eq and p.goles_visita > p.goles_local) else 1 if p.goles_local == p.goles_visita else 0 for p in partidos_v1])
-            gd = sum([p.goles_local - p.goles_visita if p.equipo_local == eq else p.goles_visita - p.goles_local for p in partidos_v1])
-            tabla_v1.append({'equipo': eq, 'pts': pts, 'gd': gd})
-            
-        tabla_v1 = sorted(tabla_v1, key=lambda x: (x['pts'], x['gd']), reverse=True)
+    with transaction.atomic():
+        # 1. Borrar todos los partidos que NO sean de Fase 1
+        Partido.objects.filter(torneo=torneo, etapa__in=['F2', '4TOS', 'SEMI', 'TERC', 'FINAL']).delete()
         
-        with transaction.atomic():
-            # 2. Damos bonificaciones a los dos primeros (2 pts al primero, 1 pt al segundo)
-            if len(tabla_v1) > 0:
-                eq1 = tabla_v1[0]['equipo']
-                eq1.puntos_bonificacion += 2
-                eq1.save()
-            if len(tabla_v1) > 1:
-                eq2 = tabla_v1[1]['equipo']
-                eq2.puntos_bonificacion += 1
-                eq2.save()
-
-            # 3. Copiamos todos los partidos de la Vuelta 1, invertimos la localía y les ponemos vuelta=2
-            partidos_ida = Partido.objects.filter(torneo=torneo, etapa='F1', vuelta=1)
-            for p in partidos_ida:
-                Partido.objects.create(
-                    torneo=torneo,
-                    etapa='F1',
-                    vuelta=2,
-                    numero_fecha=p.numero_fecha + 10, # Para diferenciar en el calendario
-                    equipo_local=p.equipo_visita, # Invertimos
-                    equipo_visita=p.equipo_local, # Invertimos
-                    estado='PROG',
-                    fecha_hora=None
-                )
-                
-        messages.success(request, f"✅ ¡Segunda Vuelta Iniciada! 2pts para {tabla_v1[0]['equipo'].nombre} y 1pt para {tabla_v1[1]['equipo'].nombre}.")
-        return redirect('tabla_posiciones', torneo_id=torneo.id)
-
-@login_required
-@user_passes_test(lambda u: u.perfil.rol == 'ORG')
-def revertir_segunda_vuelta_f1(request, torneo_id):
-    torneo = get_object_or_404(Torneo, id=torneo_id)
+        # 2. Resetear los grupos y bonificaciones de los equipos (Volver a Fase 1)
+        Equipo.objects.filter(torneo=torneo).update(grupo_fase2="", puntos_bonificacion=0)
+        
+        # 3. Quitar los bloqueos de Ida y Vuelta de las fases eliminatorias
+        torneo.fase2_ida_vuelta = False
+        torneo.fase3_ida_vuelta = False
+        torneo.save()
     
-    if request.method == 'POST':
-        with transaction.atomic():
-            # 1. Borramos TODOS los partidos que sean de la Fase 1 y Vuelta 2
-            partidos_v2 = Partido.objects.filter(torneo=torneo, etapa='F1', vuelta=2)
-            cantidad_borrada = partidos_v2.count()
-            partidos_v2.delete()
-            
-            # 2. Reseteamos los puntos de bonificación a 0 para todos los equipos de este torneo
-            equipos = Equipo.objects.filter(torneo=torneo)
-            for eq in equipos:
-                if eq.puntos_bonificacion > 0:
-                    eq.puntos_bonificacion = 0
-                    eq.save()
-                    
-        messages.warning(request, f"🔄 Reverso exitoso: Se eliminaron {cantidad_borrada} partidos de revancha y se quitaron los bonos.")
-        return redirect('tabla_posiciones', torneo_id=torneo.id)
-    
-@login_required
-@user_passes_test(lambda u: u.perfil.rol == 'ORG')
-def generar_llaves(request, torneo_id):
-    """ Función esqueleto para generar Cuartos de Final """
-    torneo = get_object_or_404(Torneo, id=torneo_id)
-    if request.method == 'POST':
-        # 🚧 Aquí luego pondremos la lógica matemática para los cruces.
-        messages.success(request, "🚧 Botón conectado correctamente. (Falta programar la lógica de los Cuartos de Final).")
-        return redirect('tabla_posiciones_f2', torneo_id=torneo.id)
-    return redirect('tabla_posiciones_f2', torneo_id=torneo.id)
-
-@login_required
-@user_passes_test(lambda u: u.perfil.rol == 'ORG')
-def generar_vuelta2_f1(request, torneo_id):
-    torneo = get_object_or_404(Torneo, id=torneo_id)
-    
-    if request.method == 'POST':
-        with transaction.atomic():
-            # 1. Buscamos todos los partidos de la primera vuelta
-            partidos_vuelta1 = Partido.objects.filter(torneo=torneo, etapa='F1', vuelta=1)
-            
-            if not partidos_vuelta1.exists():
-                messages.error(request, "⛔ No puedes iniciar la 2da Vuelta porque no hay partidos en la 1ra Vuelta.")
-                return redirect('tabla_posiciones', torneo_id=torneo.id)
-
-            # 2. Averiguamos cuál fue la última jornada de la Vuelta 1 (ej: Jornada 5)
-            ultima_fecha = partidos_vuelta1.aggregate(Max('numero_fecha'))['numero_fecha__max'] or 0
-            
-            # 3. Generamos el fixture de revancha automáticamente
-            partidos_creados = 0
-            for p in partidos_vuelta1:
-                # OJO: Solo clonamos un partido de revancha si no existe ya
-                if not Partido.objects.filter(torneo=torneo, etapa='F1', vuelta=2, equipo_local=p.equipo_visita, equipo_visita=p.equipo_local).exists():
-                    Partido.objects.create(
-                        torneo=torneo,
-                        etapa='F1',
-                        vuelta=2, # 🔥 Le decimos al sistema que esto es la revancha
-                        numero_fecha=p.numero_fecha + ultima_fecha, # Si la V1 terminó en J5, la revancha empieza en J6
-                        equipo_local=p.equipo_visita, # 🔄 INVERTIMOS LOCALÍA
-                        equipo_visita=p.equipo_local, # 🔄 INVERTIMOS LOCALÍA
-                        estado='PROG',
-                        cancha=p.cancha
-                    )
-                    partidos_creados += 1
-            
-            # 4. (Opcional) Aquí puedes agregar la lógica para sumar los bonos a los equipos top.
-            
-        messages.success(request, f"✅ ¡Fixture de Revancha generado! Se crearon {partidos_creados} nuevos partidos.")
+    messages.success(request, "🔄 ¡Rebobinado exitoso! La Fase 2 y eliminatorias fueron borradas. Has vuelto a la Fase 1.")
     return redirect('tabla_posiciones', torneo_id=torneo.id)
 
+
 @login_required
-@user_passes_test(lambda u: u.perfil.rol == 'ORG')
-def otorgar_bonos_vuelta2(request, torneo_id):
+@user_passes_test(es_organizador)
+def activar_vuelta_f1(request, torneo_id):
     torneo = get_object_or_404(Torneo, id=torneo_id)
+    torneo.fase1_ida_vuelta = True
+    torneo.save()
+    messages.success(request, "🔄 Formato actualizado: Ahora puedes programar partidos de Vuelta en la Fase 1.")
+    return redirect(f"/programar/?torneo={torneo.id}")
+
+@login_required
+@user_passes_test(es_organizador)
+def cambiar_formato_fase1(request, torneo_id):
+    torneo = get_object_or_404(Torneo, id=torneo_id)
+    
+    # Si queremos DESACTIVAR la vuelta (volver a Solo Ida)
+    if torneo.fase1_ida_vuelta:
+        # 🛡️ PROTECCIÓN: Calculamos cuántas fechas son la ida
+        total_equipos = Equipo.objects.filter(torneo=torneo, estado_inscripcion='APROBADO').count()
+        fechas_ida = total_equipos - 1 if total_equipos % 2 == 0 else total_equipos
+        
+        # ¿Existen ya partidos de vuelta programados?
+        hay_vuelta = Partido.objects.filter(torneo=torneo, etapa='F1', numero_fecha__gt=fechas_ida).exists()
+        
+        if hay_vuelta:
+            messages.error(request, "⛔ No puedes volver a 'Solo Ida' porque ya tienes partidos de VUELTA programados. Debes eliminarlos primero.")
+        else:
+            torneo.fase1_ida_vuelta = False
+            torneo.save()
+            messages.success(request, "✅ Formato restaurado a: SOLO IDA.")
+    
+    # Si queremos ACTIVAR la vuelta
+    else:
+        torneo.fase1_ida_vuelta = True
+        torneo.save()
+        messages.success(request, "🔄 Formato actualizado: Ahora se permiten partidos de VUELTA.")
+
+    return redirect(f"/programar/?torneo={torneo.id}")
+
+
+def buscar_jugador_api(request, cedula):
+    # Buscamos si existe algún jugador con esa cédula en la historia del sistema
+    # Usamos .first() ordenado por id descendente para traer su registro más reciente
+    jugador = Jugador.objects.filter(cedula=cedula).order_by('-id').first()
+    
+    if jugador:
+        return JsonResponse({
+            'encontrado': True,
+            'nombres': jugador.nombres,
+        })
+    else:
+        return JsonResponse({'encontrado': False})
+    
+# =========================================================
+# GESTIÓN DE CATEGORÍAS
+# =========================================================
+
+@login_required
+@user_passes_test(es_organizador)
+def gestionar_categorias(request):
+    from .models import Categoria 
+    
     if request.method == 'POST':
-        with transaction.atomic():
-            # 1. Obtenemos todos los equipos del torneo
-            equipos = Equipo.objects.filter(torneo=torneo)
+        nombre_categoria = request.POST.get('nombre')
+        color_elegido = request.POST.get('color_carnet') # <- Capturamos el color del formulario
+        
+        if nombre_categoria:
+            # Validamos que no exista una con el mismo nombre
+            if not Categoria.objects.filter(nombre__iexact=nombre_categoria).exists():
+                # 🔥 Guardamos la categoría junto con su color
+                Categoria.objects.create(nombre=nombre_categoria, color_carnet=color_elegido)
+                messages.success(request, f"✅ Categoría '{nombre_categoria}' creada exitosamente.")
+            else:
+                messages.error(request, f"⛔ La categoría '{nombre_categoria}' ya existe.")
+        else:
+            messages.error(request, "⛔ El nombre de la categoría no puede estar vacío.")
             
-            # 2. Calculamos los puntos SOLO de la vuelta 2 para saber quién ganó esta etapa
-            ranking = []
-            for eq in equipos:
-                # Partidos de local en vuelta 2
-                locales = Partido.objects.filter(torneo=torneo, etapa='F1', vuelta=2, equipo_local=eq, estado__in=['FINALIZADO', 'JUG', 'WO'])
-                # Partidos de visita en vuelta 2
-                visitas = Partido.objects.filter(torneo=torneo, etapa='F1', vuelta=2, equipo_visita=eq, estado__in=['FINALIZADO', 'JUG', 'WO'])
+        return redirect('gestionar_categorias')
+        
+    categorias = Categoria.objects.all().order_by('nombre')
+    
+    return render(request, 'core/gestionar_categorias.html', {
+        'categorias': categorias
+    })
+
+@login_required
+@user_passes_test(es_organizador)
+def editar_categoria(request, categoria_id):
+    from .models import Categoria
+    categoria = get_object_or_404(Categoria, id=categoria_id)
+    
+    if request.method == 'POST':
+        nuevo_nombre = request.POST.get('nombre')
+        nuevo_color = request.POST.get('color_carnet') # Capturamos el color del formulario
+        
+        if nuevo_nombre:
+            if not Categoria.objects.filter(nombre__iexact=nuevo_nombre).exclude(id=categoria.id).exists():
+                categoria.nombre = nuevo_nombre
                 
-                puntos = 0
-                gd = 0
-                for p in locales:
-                    if p.goles_local > p.goles_visita: puntos += 3
-                    elif p.goles_local == p.goles_visita: puntos += 1
-                    gd += (p.goles_local - p.goles_visita)
+                # Guardamos el nuevo color si viene en el formulario
+                if nuevo_color:
+                    categoria.color_carnet = nuevo_color
                     
-                for p in visitas:
-                    if p.goles_visita > p.goles_local: puntos += 3
-                    elif p.goles_visita == p.goles_local: puntos += 1
-                    gd += (p.goles_visita - p.goles_local)
-                
-                ranking.append({'equipo': eq, 'puntos': puntos, 'gd': gd})
+                categoria.save()
+                messages.success(request, f"✅ Categoría actualizada a '{nuevo_nombre}'.")
+            else:
+                messages.error(request, f"⛔ Ya existe otra categoría con el nombre '{nuevo_nombre}'.")
+        else:
+            messages.error(request, "⛔ El nombre no puede estar vacío.")
             
-            # 3. Ordenamos por puntos (y luego por GD para desempatar)
-            ranking.sort(key=lambda x: (x['puntos'], x['gd']), reverse=True)
-            
-            # 4. Asignamos los bonos a los 2 primeros (Si hay al menos 2 equipos)
-            if len(ranking) >= 1:
-                campeon = ranking[0]['equipo']
-                campeon.puntos_bonificacion += 2
-                campeon.save()
-            if len(ranking) >= 2:
-                subcampeon = ranking[1]['equipo']
-                subcampeon.puntos_bonificacion += 1
-                subcampeon.save()
+        return redirect('gestionar_categorias')
+        
+    return render(request, 'core/editar_categoria.html', {'categoria': categoria})
+
+
+@login_required
+@user_passes_test(es_organizador)
+def eliminar_categoria(request, categoria_id):
+    from .models import Categoria
+    categoria = get_object_or_404(Categoria, id=categoria_id)
+    
+    try:
+        categoria.delete()
+        messages.success(request, "✅ Categoría eliminada correctamente.")
+    except Exception as e:
+        # Esto nos protege por si intentas borrar una categoría que ya tiene torneos asignados
+        messages.error(request, "⛔ No se pudo eliminar la categoría porque ya tiene torneos o equipos vinculados.")
+        
+    return redirect('gestionar_categorias')
+
+# =========================================================
+# GENERADOR DE CARNETS
+# =========================================================
+@login_required
+def imprimir_carnets(request, equipo_id):
+    from .models import Equipo, Jugador
+    
+    equipo = get_object_or_404(Equipo, id=equipo_id)
+    # 🔥 AQUI ESTÁ EL CAMBIO: cambiamos 'numero' por 'dorsal'
+    jugadores = Jugador.objects.filter(equipo=equipo, expulsado_torneo=False).order_by('dorsal')
+    
+    color_cat = "#1D4ED8" 
+    nombre_cat = "Libre"
+    
+    if equipo.torneo and equipo.torneo.categoria:
+        nombre_cat = equipo.torneo.categoria.nombre
+        if hasattr(equipo.torneo.categoria, 'color_carnet'):
+            color_cat = equipo.torneo.categoria.color_carnet
+
+    return render(request, 'core/carnets_equipo.html', {
+        'equipo': equipo,
+        'jugadores': jugadores,
+        'color_categoria': color_cat,
+        'nombre_categoria': nombre_cat,
+    })
+
+
+@login_required
+@user_passes_test(es_organizador)
+def gestionar_configuracion(request):
+    # Obtenemos la configuración principal (el ID 1) o la creamos si no existe
+    config, created = Configuracion.objects.get_or_create(id=1) 
+    
+    if request.method == 'POST':
+        # El parámetro request.FILES es vital para procesar imágenes
+        form = ConfiguracionForm(request.POST, request.FILES, instance=config)
+        if form.is_valid():
+            form.save()
+            messages.success(request, '✅ Configuración y Logo actualizados correctamente.')
+            return redirect('dashboard')
+    else:
+        form = ConfiguracionForm(instance=config)
+        
+    return render(request, 'core/gestionar_configuracion.html', {'form': form})
+
+@login_required
+def rechazar_reserva_admin(request, reserva_id):
+    # Por seguridad, verificamos que solo el Organizador pueda hacer esto
+    if request.user.perfil.rol != 'ORG':
+        messages.error(request, 'No tienes permisos para realizar esta acción.')
+        return redirect('dashboard')
+        
+    reserva = get_object_or_404(ReservaCancha, id=reserva_id)
+    
+    # Eliminamos la reserva de la base de datos
+    reserva.delete()
+    
+    messages.success(request, '❌ Reserva rechazada y eliminada correctamente.')
+    
+    # Lo regresamos a la pantalla donde estaba (al Dashboard o a Solicitudes)
+    return redirect(request.META.get('HTTP_REFERER', 'dashboard'))
+
+@login_required
+def revertir_cobro_sancion(request, sancion_id):
+    # Verificamos que sea Organizador o Vocal
+    if request.user.perfil.rol not in ['ORG', 'VOC']:
+        messages.error(request, "No tienes permisos para realizar esta acción.")
+        return redirect('dashboard')
+        
+    sancion = get_object_or_404(Sancion, id=sancion_id)
+    
+    if request.method == 'POST':
+        try:
+            with transaction.atomic():
+                # 1. Buscamos SOLAMENTE el último abono registrado para esta sanción
+                ultimo_abono = sancion.historial_abonos.order_by('-fecha', '-id').first()
                 
-        messages.success(request, f"🏆 ¡Bonificaciones entregadas! +2 pts para {ranking[0]['equipo'].nombre} y +1 pt para {ranking[1]['equipo'].nombre}.")
-    return redirect('tabla_posiciones', torneo_id=torneo.id)
+                if ultimo_abono:
+                    monto_a_reversar = ultimo_abono.monto
+                    
+                    # 2. Le restamos ese dinero a lo que ya había pagado
+                    sancion.monto_pagado -= monto_a_reversar
+                    
+                    # Si por seguridad matemática queda en negativo, lo forzamos a 0
+                    if sancion.monto_pagado < Decimal('0.00'):
+                        sancion.monto_pagado = Decimal('0.00')
+                        
+                    # 3. Como le quitamos dinero, la deuda lógicamente ya no está 100% pagada
+                    sancion.pagada = False
+                    sancion.save()
+                    
+                    # 4. Eliminamos SOLO ese último registro de abono
+                    ultimo_abono.delete()
+                    
+                    messages.success(request, f"🔄 Reverso exitoso: Se anuló el último abono de ${monto_a_reversar} para {sancion.equipo.nombre}.")
+                else:
+                    messages.warning(request, "⚠️ No se encontraron abonos para reversar en esta cuenta.")
+                    
+        except Exception as e:
+            messages.error(request, f"Error al intentar reversar el pago: {str(e)}")
+            
+    # Redirige a la misma página donde estaba el usuario
+    return redirect(request.META.get('HTTP_REFERER', 'gestionar_finanzas'))
+
+@login_required
+@user_passes_test(es_organizador)
+def suspender_por_cuota(request, torneo_id):
+    if request.method == 'POST':
+        limite = int(request.POST.get('limite_partidos', 0))
+        torneo = get_object_or_404(Torneo, id=torneo_id)
+        equipos = Equipo.objects.filter(torneo=torneo, estado_inscripcion='APROBADO')
+        jugadores = Jugador.objects.filter(equipo__in=equipos)
+
+        suspendidos_count = 0
+        for j in jugadores:
+            # Contar los partidos jugados (ASIS) de este jugador, en este torneo, con este equipo
+            partidos_jugados = DetallePartido.objects.filter(
+                jugador=j, 
+                partido__torneo=torneo, 
+                tipo='ASIS'
+            ).count()
+
+            if partidos_jugados < limite:
+                j.bloqueado_por_cuota = True
+                j.save()
+                suspendidos_count += 1
+
+        messages.success(request, f"¡Control aplicado! Se bloquearon {suspendidos_count} jugadores por no alcanzar el mínimo de {limite} partidos.")
+    return redirect('reporte_estadisticas', torneo_id=torneo_id)
+
+@login_required
+@user_passes_test(es_organizador)
+def revertir_cuota(request, torneo_id):
+    if request.method == 'POST':
+        torneo = get_object_or_404(Torneo, id=torneo_id)
+        equipos = Equipo.objects.filter(torneo=torneo)
+        
+        # Quitamos el bloqueo a todos los jugadores de este torneo
+        jugadores_liberados = Jugador.objects.filter(equipo__in=equipos, bloqueado_por_cuota=True).update(bloqueado_por_cuota=False)
+        
+        messages.info(request, f"Reverso exitoso. Se han desbloqueado {jugadores_liberados} jugadores.")
+    return redirect('reporte_estadisticas', torneo_id=torneo_id)

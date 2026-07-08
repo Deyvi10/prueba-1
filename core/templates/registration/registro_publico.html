@@ -1,16 +1,16 @@
 {% extends 'core/base.html' %}
 {% load static %}
 
-{% block title %}Crear Cuenta | Cancha El Chulo{% endblock %}
+{% block title %}Crear Cuenta | CANCHA EL CHULO{% endblock %}
 
 {% block extra_css %}
 <style>
-    /* Ocultamos navegación para dar inmersión total tipo App Native */
+    /* Inmersión total CANCHA EL CHULO */
     .navbar { display: none !important; }
     .main-content { margin-top: 0 !important; padding-bottom: 0 !important; padding-top: 0 !important; }
     
     body {
-        background-color: #ffffff; /* Fondo blanco puro para máxima claridad */
+        background-color: #ffffff;
         min-height: 100vh;
         display: flex;
         align-items: center;
@@ -18,10 +18,10 @@
     }
 
     /* ==========================================
-       COLUMNA IZQUIERDA: PC (Se oculta en móvil)
+       COLUMNA IZQUIERDA: VISUAL IDENTITY
        ========================================== */
     .register-cover {
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        background: linear-gradient(135deg, var(--primary-navy) 0%, #1e293b 100%);
         position: relative;
         height: 100vh;
         display: flex;
@@ -34,38 +34,38 @@
     }
     .register-cover::before {
         content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-        background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+        background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
         background-size: 32px 32px; opacity: 0.8;
     }
 
     /* ==========================================
-       COLUMNA DERECHA: FORMULARIO ULTRA CLEAN
+       COLUMNA DERECHA: FORMULARIO PREMIUM
        ========================================== */
     .register-form-container {
         height: 100vh; overflow-y: auto; display: flex; align-items: center; justify-content: center; background-color: #ffffff;
     }
-    .form-wrapper { width: 100%; max-width: 440px; padding: 2rem; }
+    .form-wrapper { width: 100%; max-width: 460px; padding: 2.5rem; }
 
-    /* ESTILOS FLOATING LABELS (Etiquetas flotantes para ahorrar espacio) */
-    .form-floating { margin-bottom: 0.8rem; }
+    /* Floating Labels Modernizados */
+    .form-floating { margin-bottom: 1rem; }
     
     .form-floating > .form-control {
-        border: 1.5px solid #e2e8f0;
+        border: 1.5px solid #cbd5e1;
         border-radius: 12px;
         background-color: #f8fafc;
-        color: #0f172a;
+        color: var(--primary-navy);
         font-weight: 600;
         font-size: 0.95rem;
-        height: 56px; /* Alto perfecto para el dedo */
+        height: 58px;
         padding-top: 1.6rem;
         padding-bottom: 0.4rem;
-        transition: all 0.2s ease;
+        transition: all 0.3s ease;
     }
     
     .form-floating > .form-control:focus {
-        border-color: #0ea5e9;
+        border-color: var(--primary-blue);
         background-color: #ffffff;
-        box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.1);
+        box-shadow: 0 0 0 4px rgba(29, 78, 216, 0.1);
         outline: none;
     }
 
@@ -77,32 +77,36 @@
 
     .form-floating > .form-control:focus ~ label,
     .form-floating > .form-control:not(:placeholder-shown) ~ label {
-        color: #0ea5e9;
+        color: var(--primary-blue);
         font-weight: 700;
-        transform: scale(0.85) translateY(-0.75rem) translateX(0.15rem);
+        transform: scale(0.85) translateY(-0.85rem) translateX(0.15rem);
     }
 
-    /* Botón Principal Call to Action */
     .btn-register-pro {
-        background: #0ea5e9; 
+        background: var(--primary-blue); 
         color: white; 
         font-weight: 800; 
-        font-size: 1rem; 
+        font-size: 1.05rem; 
         letter-spacing: 0.5px;
-        height: 50px; 
-        border-radius: 12px; 
+        height: 52px; 
+        border-radius: 14px; 
         border: none; 
         width: 100%;
-        box-shadow: 0 4px 12px rgba(14, 165, 233, 0.25); 
-        transition: all 0.2s ease;
-        margin-top: 1rem;
+        box-shadow: 0 8px 20px rgba(29, 78, 216, 0.25); 
+        transition: all 0.3s ease;
+        margin-top: 1.2rem;
     }
-    .btn-register-pro:hover { transform: translateY(-2px); background: #0284c7; box-shadow: 0 6px 15px rgba(14, 165, 233, 0.35); }
+    .btn-register-pro:hover { 
+        transform: translateY(-2px); 
+        filter: brightness(1.1);
+        box-shadow: 0 12px 25px rgba(29, 78, 216, 0.35); 
+    }
 
-    /* Optimizaciones Móviles */
+    .form-check-input:checked { background-color: var(--primary-blue); border-color: var(--primary-blue); }
+
     @media (max-width: 991px) {
-        .form-wrapper { padding: 1.5rem 1.2rem; }
-        .btn-register-pro { height: 54px; font-size: 1.05rem; } /* Más grande en celular para facilitar el toque */
+        .form-wrapper { padding: 2rem 1.5rem; }
+        .btn-register-pro { height: 56px; }
     }
 </style>
 {% endblock %}
@@ -112,10 +116,12 @@
     
     <div class="col-lg-6 col-xl-7 d-none d-lg-flex register-cover">
         <div class="text-center position-relative z-1 animate__animated animate__fadeInUp">
-            <img src="{% static 'img/logo_chulo_white.png' %}" alt="Cancha El Chulo" style="width: 200px; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.5)); margin-bottom: 1.5rem;">
+            <img src="{{ config_global.logo_sistema.url }}" alt="CANCHA EL CHULO" style="width: 220px; filter: drop-shadow(0 15px 30px rgba(0,0,0,0.6)); margin-bottom: 2rem;">
             
-            <h1 class="fw-black text-white mb-3" style="letter-spacing: -1px; font-size: 3.5rem;">Cancha El Chulo</h1>
-            <p class="text-white-50 fs-5 fw-medium" style="max-width: 70%; margin: 0 auto;">Crea tu cuenta de dirigente y administra tu equipo de forma profesional y gratuita.</p>
+            <h1 class="fw-black text-white mb-3" style="letter-spacing: -1.5px; font-size: 3.8rem;">CANCHA EL CHULO</h1>
+            <p class="text-white-50 fs-5 fw-medium" style="max-width: 80%; margin: 0 auto; letter-spacing: 0.5px;">
+                Únete a la plataforma líder en gestión deportiva. Registra tu equipo y lleva el control total de tu plantilla.
+            </p>
         </div>
     </div>
 
@@ -123,15 +129,14 @@
         <div class="register-form-container">
             <div class="form-wrapper animate__animated animate__fadeIn">
                 
-                <div class="d-flex justify-content-between align-items-center mb-4 pb-2">
+                <div class="d-flex justify-content-between align-items-start mb-5 pb-2">
                     <div>
-                        <img src="{% static 'img/logo_chulo.png' %}" alt="Cancha El Chulo" class="d-lg-none mb-2" style="width: 70px; object-fit: contain;">
-                        
-                        <h3 class="fw-black text-dark mb-1" style="letter-spacing: -0.5px;">Crea tu cuenta</h3>
-                        <p class="text-muted fw-medium m-0" style="font-size: 0.85rem;">Ingresa tus datos para comenzar.</p>
+                        <img src="{{ config_global.logo_sistema.url }}" alt="Logo" class="d-lg-none mb-3" style="width: 60px;">
+                        <h3 class="fw-black text-dark mb-1" style="letter-spacing: -0.5px;">Crear una cuenta</h3>
+                        <p class="text-muted fw-medium m-0" style="font-size: 0.85rem;">Regístrate como dirigente en pocos pasos.</p>
                     </div>
-                    <a href="{% url 'login' %}" class="text-primary fw-bold text-decoration-none bg-primary bg-opacity-10 px-3 py-2 rounded-pill" style="font-size: 0.75rem;">
-                        Iniciar Sesión
+                    <a href="{% url 'login' %}" class="fw-bold text-decoration-none px-3 py-2 rounded-pill transition-all" style="font-size: 0.75rem; background-color: var(--bg-body); color: var(--primary-blue);">
+                        Ya tengo cuenta
                     </a>
                 </div>
 
@@ -146,24 +151,30 @@
                         </div>
 
                         {% if field.errors %}
-                            <div class="text-danger fw-bold mb-2 ps-2" style="font-size: 0.7rem; margin-top: -5px;">
-                                <i class="bi bi-info-circle-fill me-1"></i> {{ field.errors.0 }}
+                            <div class="text-danger fw-bold mb-3 ps-2" style="font-size: 0.75rem; margin-top: -8px;">
+                                <i class="bi bi-exclamation-triangle-fill me-1"></i> {{ field.errors.0 }}
                             </div>
                         {% endif %}
                     </div>
                     {% endfor %}
 
-                    <div class="d-flex align-items-center gap-2 mt-3 mb-4 ps-1">
-                        <input class="form-check-input flex-shrink-0 m-0 shadow-sm" type="checkbox" id="terms" required style="width: 1.2rem; height: 1.2rem; border-color: #cbd5e1; cursor: pointer;">
-                        <label class="form-check-label text-muted fw-medium lh-sm m-0" for="terms" style="cursor: pointer; font-size: 0.75rem;">
-                            Al registrarme, acepto los <a href="#" class="text-dark fw-bold text-decoration-none border-bottom border-dark">Términos de uso</a>.
+                    <div class="d-flex align-items-center gap-3 mt-4 mb-4 ps-1">
+                        <input class="form-check-input flex-shrink-0 m-0 shadow-sm" type="checkbox" id="terms" required>
+                        <label class="form-check-label text-muted fw-medium lh-sm m-0" for="terms" style="cursor: pointer; font-size: 0.8rem;">
+                            Acepto los <a href="#" class="text-dark fw-black text-decoration-none border-bottom border-dark">Términos y condiciones</a> de CANCHA EL CHULO.
                         </label>
                     </div>
 
-                    <button type="submit" class="btn-register-pro">
-                        CREAR CUENTA
+                    <button type="submit" class="btn-register-pro shadow-lg">
+                        FINALIZAR REGISTRO <i class="bi bi-check-lg ms-2"></i>
                     </button>
                 </form>
+
+                <div class="mt-5 text-center">
+                     <a href="{% url 'dashboard' %}" class="text-muted small text-decoration-none fw-bold hover-lift d-inline-block">
+                        <i class="bi bi-arrow-left-short fs-5 align-middle"></i> Regresar al Inicio
+                    </a>
+                </div>
 
             </div>
         </div>
@@ -171,42 +182,31 @@
 </div>
 
 <script>
-    // 🪄 MAGIA JAVASCRIPT: Prepara los inputs de Django y agrega validaciones estrictas
     document.addEventListener("DOMContentLoaded", function() {
         const inputs = document.querySelectorAll('.form-floating input, .form-floating select');
         
         inputs.forEach(input => {
-            // Añadimos la clase obligatoria de Bootstrap
             input.classList.add('form-control');
-            
-            // Para que la etiqueta flotante funcione, el input DEBE tener un placeholder (aunque sea un espacio en blanco)
             if(!input.getAttribute('placeholder')) {
                 input.setAttribute('placeholder', ' '); 
             }
 
-            // ==================================================
-            // ✨ VALIDACIONES EN TIEMPO REAL PARA EL CELULAR ✨
-            // ==================================================
             const name = input.name.toLowerCase();
 
-            // 1. Cédula, Teléfonos y DNI: SOLO NÚMEROS Y TECLADO NUMÉRICO
+            // Solo números en campos de identificación y contacto
             if(name.includes('telefono') || name.includes('celular') || name.includes('cedula') || name.includes('dni')) {
                 input.setAttribute('inputmode', 'numeric');
                 input.setAttribute('pattern', '[0-9]*');
-                
-                // Borra automáticamente cualquier letra que intenten escribir
                 input.addEventListener('input', function() {
                     this.value = this.value.replace(/[^0-9]/g, '');
                 });
             } 
-            // 2. Nombres y Apellidos: SOLO LETRAS Y ESPACIOS
+            // Solo letras en nombres y apellidos
             else if(name.includes('first_name') || name.includes('last_name') || name.includes('nombre') || name.includes('apellido')) {
-                // Borra automáticamente números y caracteres especiales
                 input.addEventListener('input', function() {
                     this.value = this.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '');
                 });
             }
-            // 3. Correo Electrónico: TECLADO CON "@"
             else if(name.includes('email') || name.includes('correo')) {
                 input.setAttribute('inputmode', 'email');
             }

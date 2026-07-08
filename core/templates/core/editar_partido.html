@@ -1,232 +1,100 @@
 {% extends 'core/base.html' %}
 
-{% block extra_css %}
-<style>
-    /* --- ESTILOS CLAROS Y LIMPIOS --- */
-    :root {
-        --clean-bg: #f3f4f6;
-        --clean-surface: #ffffff;
-        --clean-border: #e5e7eb;
-        --text-main: #1f2937;
-        --text-muted: #6b7280;
-        
-        --accent-blue: #0284c7;
-        --accent-green: #16a34a;
-        --accent-orange: #ea580c;
-        --accent-red: #dc2626;
-    }
-
-    body { background-color: var(--clean-bg); color: var(--text-main); }
-
-    .clean-card {
-        background-color: var(--clean-surface);
-        border: 1px solid var(--clean-border);
-        border-radius: 16px;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
-        overflow: hidden;
-    }
-
-    .clean-header {
-        background-color: #f9fafb;
-        border-bottom: 1px solid var(--clean-border);
-        padding: 1.2rem 1.5rem;
-    }
-
-    /* Estilo para los inputs del formulario generado por Django */
-    form input[type="text"], 
-    form input[type="number"], 
-    form input[type="datetime-local"], 
-    form input[type="date"], 
-    form input[type="time"], 
-    form select, 
-    form textarea {
-        display: block;
-        width: 100%;
-        padding: 0.6rem 1rem;
-        font-size: 1rem;
-        font-weight: 500;
-        line-height: 1.5;
-        color: #1f2937;
-        background-color: #ffffff;
-        background-clip: padding-box;
-        border: 1px solid #d1d5db;
-        border-radius: 8px;
-        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-    }
-
-    form input:focus, 
-    form select:focus, 
-    form textarea:focus {
-        border-color: var(--accent-blue);
-        outline: 0;
-        box-shadow: 0 0 0 4px rgba(2, 132, 199, 0.15);
-    }
-
-    form label {
-        font-weight: 700;
-        color: #374151;
-        margin-bottom: 0.4rem;
-        font-size: 0.85rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    /* Botones Modernos */
-    .btn-primary-clean {
-        background-color: var(--accent-blue);
-        color: white;
-        border: none;
-        border-radius: 8px;
-        padding: 0.75rem 1.5rem;
-        font-weight: 800;
-        transition: all 0.2s;
-    }
-    .btn-primary-clean:hover { background-color: #0369a1; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3); color: white;}
-    
-    .btn-outline-clean {
-        background-color: #ffffff;
-        color: #4b5563;
-        border: 1px solid #d1d5db;
-        border-radius: 8px;
-        padding: 0.75rem 1.5rem;
-        font-weight: 700;
-        transition: all 0.2s;
-    }
-    .btn-outline-clean:hover { background-color: #f3f4f6; color: #111827; }
-
-    /* Zona de Corrección (Peligro) */
-    .danger-zone {
-        background-color: #fef2f2;
-        border: 1px dashed #f87171;
-        border-radius: 12px;
-        padding: 1.5rem;
-        margin-top: 2rem;
-    }
-    
-    .danger-zone h6 {
-        color: #b91c1c;
-        font-weight: 900;
-        margin-bottom: 0.5rem;
-    }
-    
-    .danger-zone p {
-        color: #991b1b;
-        font-size: 0.85rem;
-    }
-
-    .btn-danger-clean {
-        background-color: #ffffff;
-        color: #dc2626;
-        border: 1px solid #fca5a5;
-        border-radius: 8px;
-        padding: 0.6rem 1rem;
-        font-weight: 800;
-        transition: all 0.2s;
-    }
-    .btn-danger-clean:hover { background-color: #dc2626; color: white; border-color: #dc2626; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3); }
-
-    /* Match Info Header */
-    .match-info-pill {
-        background: #f3f4f6;
-        border-radius: 50px;
-        padding: 5px 15px;
-        font-size: 0.85rem;
-        font-weight: 800;
-        color: #4b5563;
-        border: 1px solid #e5e7eb;
-    }
-</style>
-{% endblock %}
+{% block title %}Editar Partido | CANCHA EL CHULO{% endblock %}
 
 {% block contenido %}
-<div class="container py-4 animate__animated animate__fadeIn">
-    <div class="row justify-content-center">
-        <div class="col-md-8 col-lg-6">
+<div class="row justify-content-center animate__animated animate__fadeInUp mt-4 mb-5">
+    <div class="col-md-8 col-lg-6">
+        <div class="card card-pro border-0 shadow-lg rounded-4 overflow-hidden">
             
-            <div class="d-flex align-items-center mb-3">
-                <a href="{% url 'programar_partidos' %}?torneo={{ partido.torneo.id }}" class="text-primary fw-bold text-decoration-none me-3">
-                    <i class="bi bi-arrow-left-short fs-4"></i> Volver
-                </a>
+            <div class="card-header text-white py-4 border-0 d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, var(--primary-navy), var(--primary-blue));">
+                <h4 class="fw-black mb-0" style="letter-spacing: 0.5px;">
+                    <i class="bi bi-pencil-square text-white opacity-75 me-2"></i>Editar Partido
+                </h4>
+                
+                {% if partido.estado == 'JUG' or partido.estado == 'FINALIZADO' %}
+                    <span class="badge bg-success bg-opacity-25 text-white border border-success px-3 py-2 rounded-pill shadow-sm">JUGADO</span>
+                {% elif partido.estado == 'WO' %}
+                    <span class="badge bg-danger bg-opacity-25 text-white border border-danger px-3 py-2 rounded-pill shadow-sm">W.O.</span>
+                {% else %}
+                    <span class="badge bg-warning text-dark px-3 py-2 rounded-pill shadow-sm border border-warning">PENDIENTE</span>
+                {% endif %}
             </div>
-
-            <div class="clean-card">
-                <div class="clean-header d-flex flex-column align-items-center justify-content-center text-center">
-                    <div class="d-flex w-100 justify-content-between align-items-start mb-3">
-                        <h5 class="fw-black text-dark mb-0"><i class="bi bi-calendar2-week text-primary me-2"></i>Editar Partido</h5>
-                        {% if partido.estado == 'JUG' %}
-                            <span class="badge bg-success shadow-sm px-3 py-2 rounded-pill"><i class="bi bi-check-circle-fill me-1"></i> JUGADO</span>
-                        {% elif partido.estado == 'WO' %}
-                            <span class="badge bg-danger shadow-sm px-3 py-2 rounded-pill"><i class="bi bi-x-circle-fill me-1"></i> W.O.</span>
-                        {% else %}
-                            <span class="badge bg-warning text-dark shadow-sm px-3 py-2 rounded-pill"><i class="bi bi-clock-fill me-1"></i> PENDIENTE</span>
+            
+            <div class="card-body p-4 p-md-5 bg-white">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    {% for field in form %}
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-uppercase" style="color: var(--primary-navy); font-size: 0.85rem; letter-spacing: 0.5px;">
+                            {{ field.label }}
+                        </label>
+                        {{ field }}
+                        {% if field.errors %}
+                            <div class="text-danger small mt-1 fw-bold"><i class="bi bi-exclamation-circle me-1"></i>{{ field.errors|striptags }}</div>
+                        {% endif %}
+                        {% if field.help_text %}
+                            <div class="form-text text-muted mt-1" style="font-size: 0.75rem;">{{ field.help_text }}</div>
                         {% endif %}
                     </div>
-                    
-                    <div class="match-info-pill w-100 d-flex justify-content-between align-items-center mt-2 shadow-sm">
-                        <span class="text-truncate" style="max-width: 40%;">{{ partido.equipo_local.nombre }}</span>
-                        <span class="badge bg-dark text-white mx-2">VS</span>
-                        <span class="text-truncate text-end" style="max-width: 40%;">{{ partido.equipo_visita.nombre }}</span>
-                    </div>
-                </div>
+                    {% endfor %}
 
-                <div class="card-body p-4 bg-white">
-                    <form method="post">
-                        {% csrf_token %}
-                        
-                        <div class="row g-3">
-                            {% for field in form %}
-                            <div class="col-12 {% if field.name == 'fecha_hora' or field.name == 'cancha' %}col-md-6{% endif %}">
-                                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-                                {{ field }}
-                                {% if field.help_text %}
-                                    <small class="text-muted mt-1 d-block" style="font-size: 0.75rem;">{{ field.help_text }}</small>
-                                {% endif %}
-                                {% if field.errors %}
-                                    <div class="text-danger fw-bold mt-1" style="font-size: 0.8rem;">
-                                        <i class="bi bi-exclamation-circle me-1"></i>{{ field.errors|striptags }}
-                                    </div>
-                                {% endif %}
-                            </div>
-                            {% endfor %}
-                        </div>
-
-                        <div class="d-flex flex-column flex-md-row gap-2 mt-4 pt-3 border-top">
-                            <button type="submit" class="btn btn-primary-clean w-100 shadow-sm">
-                                <i class="bi bi-save2 me-2"></i>GUARDAR CAMBIOS
-                            </button>
-                            <a href="{% url 'programar_partidos' %}?torneo={{ partido.torneo.id }}" class="btn btn-outline-clean w-100 text-center text-decoration-none">
-                                Cancelar
-                            </a>
-                        </div>
-                    </form>
-
-                    {% if partido.estado == 'JUG' or partido.estado == 'WO' %}
-                    <div class="danger-zone shadow-sm">
-                        <h6><i class="bi bi-exclamation-triangle-fill me-2"></i>Zona de Corrección Administrativa</h6>
-                        <p class="mb-3">Si el resultado, goles o tarjetas fueron ingresados por error en la vocalía, puedes reiniciar el partido por completo.</p>
-                        <a href="{% url 'reiniciar_partido' partido.id %}" class="btn btn-danger-clean w-100 text-center text-decoration-none d-block" onclick="return confirm('⚠️ ADVERTENCIA CRÍTICA:\n\n¿Estás absolutamente seguro?\n\nAl confirmar, se borrarán TODOS los goles, asistencias y tarjetas de este partido y el estado volverá a PENDIENTE.')">
-                            <i class="bi bi-arrow-counterclockwise me-1"></i> REINICIAR PARTIDO (BORRAR RESULTADO)
+                    <div class="d-grid gap-3 mt-5">
+                        <button type="submit" class="btn btn-sport btn-lg w-100 fw-bold shadow-sm" style="border-radius: 12px;">
+                            <i class="bi bi-save me-2"></i> Guardar Cambios
+                        </button>
+                        <a href="{% url 'programar_partidos' %}?torneo={{ partido.torneo.id }}" class="btn btn-light border-secondary-subtle w-100 fw-bold rounded-pill transition-all text-dark">
+                            <i class="bi bi-arrow-left me-2"></i> Cancelar y Volver
                         </a>
                     </div>
-                    {% endif %}
+                </form>
 
+                {% if partido.estado == 'JUG' or partido.estado == 'WO' %}
+                <hr class="my-5" style="border-color: #E2E8F0;">
+                
+                <div class="alert border-0 rounded-4 p-4 shadow-sm" style="background-color: #FEF2F2; border-left: 5px solid #EF4444 !important;">
+                    <h6 class="text-danger fw-black mb-2"><i class="bi bi-exclamation-triangle-fill me-2"></i> Zona de Corrección Administrativa</h6>
+                    <p class="small text-danger mb-3 fw-medium" style="opacity: 0.85;">Si el resultado fue ingresado por error, puedes reiniciar el partido. Esto borrará goles, tarjetas y asistencias permanentemente.</p>
+                    <a href="{% url 'reiniciar_partido' partido.id %}" class="btn btn-outline-danger fw-bold rounded-pill w-100 transition-all" onclick="return confirm('⚠️ ¿ESTÁS SEGURO?\n\nSe borrarán todos los goles y tarjetas de este partido y volverá a estar pendiente.')">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i> Reiniciar Partido
+                    </a>
                 </div>
+                {% endif %}
+
             </div>
-            
         </div>
     </div>
 </div>
 
-<script>
-    // Pequeño script para asegurar que si Django manda selects o inputs sin clase, tomen el estilo correcto
-    document.addEventListener("DOMContentLoaded", function() {
-        const formElements = document.querySelectorAll('form input, form select, form textarea');
-        formElements.forEach(el => {
-            if(el.type !== 'hidden' && el.type !== 'checkbox' && el.type !== 'submit') {
-                // El CSS ya los afecta por etiqueta, pero podemos añadirles una clase si es necesario
-                el.classList.add('shadow-sm');
-            }
-        });
-    });
-</script>
+{% block extra_css %}
+<style>
+    /* Estilos automáticos para los inputs de Django */
+    input.form-control, select.form-select, textarea.form-control {
+        border-radius: 10px !important;
+        border: 1px solid #CBD5E1 !important;
+        padding: 10px 15px !important;
+        background-color: #F8FAFC !important;
+        color: var(--text-main) !important;
+        transition: all 0.3s ease !important;
+    }
+    input.form-control:focus, select.form-select:focus, textarea.form-control:focus {
+        background-color: #FFFFFF !important;
+        border-color: var(--primary-blue) !important;
+        box-shadow: 0 0 0 4px rgba(29, 78, 216, 0.15) !important;
+    }
+    /* Estilo para checkbox y radio buttons si los hay */
+    input[type="checkbox"].form-check-input, input[type="radio"].form-check-input {
+        width: 1.2rem;
+        height: 1.2rem;
+        margin-top: 0.15rem;
+        border-color: #CBD5E1;
+        cursor: pointer;
+    }
+    input[type="checkbox"].form-check-input:checked, input[type="radio"].form-check-input:checked {
+        background-color: var(--primary-blue);
+        border-color: var(--primary-blue);
+    }
+</style>
+{% endblock %}
 {% endblock %}

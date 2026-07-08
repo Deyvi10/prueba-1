@@ -1,22 +1,22 @@
 {% extends 'core/base.html' %}
 
-{% block title %}Finanzas | Cancha El Chulo{% endblock %}
+{% block title %}Finanzas | CANCHA EL CHULO{% endblock %}
 
 {% block extra_css %}
 <style>
     /* ==========================================
-       ESTILOS PREMIUM - CENTRO FINANCIERO MÓVIL
+       ESTILOS PREMIUM - CENTRO FINANCIERO CANCHA EL CHULO
        ========================================== */
     :root {
-        --clean-bg: #f4f7fe;
-        --clean-surface: #ffffff;
-        --clean-border: #e2e8f0;
-        --text-main: #1e293b;
-        --accent-blue: #0ea5e9;
-        --accent-green: #10b981;
-        --accent-gold: #f59e0b;
-        --accent-red: #ef4444;
-        --dark-panel: #0f172a;
+        --clean-bg: #F4F7FA;
+        --clean-surface: #FFFFFF;
+        --clean-border: #CBD5E1;
+        --text-main: #1E293B;
+        --primary-navy: #0A192F;
+        --primary-blue: #1D4ED8;
+        --accent-green: #10B981;
+        --accent-gold: #F59E0B;
+        --accent-red: #EF4444;
     }
 
     body { background-color: var(--clean-bg); }
@@ -34,7 +34,7 @@
         border: 1px solid var(--clean-border); border-bottom: 4px solid var(--clean-border);
         box-shadow: 0 4px 10px rgba(0,0,0,0.02); transition: transform 0.2s;
     }
-    .stat-card-mini.blue { border-bottom-color: var(--accent-blue); }
+    .stat-card-mini.blue { border-bottom-color: var(--primary-blue); }
     .stat-card-mini.gold { border-bottom-color: var(--accent-gold); }
     .stat-card-mini.green { border-bottom-color: var(--accent-green); }
 
@@ -64,9 +64,9 @@
         border-bottom-left-radius: 0 !important;
         border-bottom-right-radius: 0 !important;
         border-bottom: 1px dashed var(--clean-border);
-        background-color: #f8fafc;
+        background-color: #F8FAFC;
     }
-    .finance-accordion .accordion-button:focus { box-shadow: none; border-color: var(--accent-blue); }
+    .finance-accordion .accordion-button:focus { box-shadow: none; border-color: var(--primary-blue); }
 
     /* Cuerpo del Acordeón (Donde van las deudas) */
     .finance-accordion .accordion-body {
@@ -85,12 +85,12 @@
     /* --- DIVISIONES INTERNAS DEL ACORDEÓN --- */
     .section-title {
         font-size: 0.75rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px;
-        padding: 12px 20px; margin: 0; background: #f8fafc; border-bottom: 1px solid var(--clean-border);
+        padding: 12px 20px; margin: 0; background: #F8FAFC; border-bottom: 1px solid var(--clean-border);
     }
     .section-pending .section-title { color: var(--accent-red); }
-    .section-paid .section-title { color: var(--accent-green); background: #f1f5f9; border-top: 1px solid var(--clean-border); }
+    .section-paid .section-title { color: var(--accent-green); background: #F1F5F9; border-top: 1px solid var(--clean-border); }
     
-    .empty-state-micro { padding: 15px 20px; font-size: 0.8rem; color: #94a3b8; font-weight: 600; font-style: italic; }
+    .empty-state-micro { padding: 15px 20px; font-size: 0.8rem; color: #94A3B8; font-weight: 600; font-style: italic; }
 
     /* --- LISTA DE DEUDAS (APP STYLE) --- */
     .debt-item {
@@ -103,10 +103,10 @@
     /* Diseño de item PAGADO (Compacto) */
     .debt-item-paid {
         display: flex; align-items: center; justify-content: space-between;
-        padding: 0.8rem 1.5rem; border-bottom: 1px dashed #cbd5e1;
-        background: #f8fafc; opacity: 0.85; transition: opacity 0.2s;
+        padding: 0.8rem 1.5rem; border-bottom: 1px dashed #CBD5E1;
+        background: #F8FAFC; opacity: 0.85; transition: opacity 0.2s;
     }
-    .debt-item-paid:hover { opacity: 1; background: #f1f5f9; }
+    .debt-item-paid:hover { opacity: 1; background: #F1F5F9; }
     .debt-item-paid:last-child { border-bottom: none; }
 
     .debt-icon-box {
@@ -124,11 +124,11 @@
         border-radius: 10px; 
     }
     .pay-input {
-        border: 1px solid #cbd5e1; 
+        border: 1px solid #CBD5E1; 
         border-radius: 10px 0 0 10px; 
         font-weight: 900; 
         font-size: 1.15rem !important; /* Números inmensos y legibles */
-        color: var(--dark-panel); 
+        color: var(--primary-navy); 
         padding: 0 10px; 
         text-align: right; 
         background: #fff;
@@ -147,10 +147,10 @@
 
     /* Etiquetas y Detalles */
     .pill-tag { font-size: 0.65rem; padding: 3px 8px; border-radius: 6px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
-    .detail-box { background: #f8fafc; border-left: 3px solid #cbd5e1; padding: 8px 12px; border-radius: 0 8px 8px 0; margin-top: 8px; }
+    .detail-box { background: #F8FAFC; border-left: 3px solid #CBD5E1; padding: 8px 12px; border-radius: 0 8px 8px 0; margin-top: 8px; }
     
     /* Historial mini */
-    .abono-history { background: #ffffff; border-radius: 8px; padding: 8px 12px; margin-top: 8px; border: 1px dashed #cbd5e1; font-size: 0.7rem; }
+    .abono-history { background: #ffffff; border-radius: 8px; padding: 8px 12px; margin-top: 8px; border: 1px dashed #CBD5E1; font-size: 0.7rem; }
 
     @media (min-width: 768px) {
         .debt-item { flex-direction: row; align-items: center; justify-content: space-between; }
@@ -158,7 +158,7 @@
         .debt-action { width: 40%; display: flex; flex-direction: column; align-items: flex-end; }
     }
     @media (max-width: 767px) {
-        .debt-action { margin-top: 15px; padding-top: 15px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+        .debt-action { margin-top: 15px; padding-top: 15px; border-top: 1px solid #E2E8F0; display: flex; justify-content: space-between; align-items: center; }
         .debt-item, .debt-item-paid, .section-title { padding-left: 1rem; padding-right: 1rem; }
     }
 </style>
@@ -167,7 +167,7 @@
 {% block contenido %}
 <div class="container-fluid px-0 animate__animated animate__fadeIn">
 
-    <div class="card border-0 rounded-4 shadow-sm mb-4" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: white;">
+    <div class="card border-0 rounded-4 shadow-sm mb-4" style="background: linear-gradient(135deg, var(--primary-navy) 0%, var(--primary-blue) 100%); color: white;">
         <div class="card-body p-4 d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
             <div class="d-flex align-items-center gap-3">
                 <div class="bg-white bg-opacity-10 p-3 rounded-circle d-flex align-items-center justify-content-center">
@@ -175,7 +175,7 @@
                 </div>
                 <div>
                     <h5 class="fw-black mb-0 text-white" style="letter-spacing: -0.5px;">Centro Financiero</h5>
-                    <span class="text-white-50 small">Gestión y recaudación de fondos</span>
+                    <span class="text-white-50 small">Gestión y recaudación CANCHA EL CHULO</span>
                 </div>
             </div>
             <div class="text-center text-md-end border-start-md border-light border-opacity-25 ps-md-4">
@@ -188,11 +188,11 @@
     <div class="scroll-horizontal">
         <div class="stat-card-mini blue">
             <div class="d-flex align-items-center mb-3">
-                <div class="bg-primary bg-opacity-10 p-2 rounded-3 me-3 text-primary"><i class="bi bi-journal-text fs-5"></i></div>
+                <div class="bg-primary bg-opacity-10 p-2 rounded-3 me-3 text-primary"><i class="bi bi-journal-text fs-5" style="color: var(--primary-blue);"></i></div>
                 <div><h6 class="fw-black text-dark mb-0 fs-6">Inscripciones</h6></div>
             </div>
             <div class="mb-2">
-                <h3 class="fw-black text-primary m-0 lh-1">${{ inscripciones_pagadas|floatformat:2 }}</h3>
+                <h3 class="fw-black m-0 lh-1" style="color: var(--primary-blue);">${{ inscripciones_pagadas|floatformat:2 }}</h3>
                 <span class="text-muted" style="font-size: 0.7rem;">Dinero Cobrado en Caja</span>
             </div>
             <div class="d-flex justify-content-between align-items-center border-top pt-2 mt-2" style="font-size: 0.75rem;">
@@ -232,19 +232,52 @@
         </div>
     </div>
 
+    <div class="card bg-dark text-white border-secondary mb-4 shadow rounded-4 overflow-hidden">
+        <div class="card-header bg-danger text-white fw-bold py-3">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> Imponer Multa / Deuda a un Equipo
+        </div>
+        <div class="card-body p-4">
+            <form method="POST">
+                {% csrf_token %}
+                <div class="row align-items-end">
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label text-secondary small fw-bold">Torneo</label>
+                        {{ form_sancion.torneo }}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label text-secondary small fw-bold">Equipo Infractor</label>
+                        {{ form_sancion.equipo }}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label class="form-label text-secondary small fw-bold">Monto ($)</label>
+                        {{ form_sancion.monto }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label text-secondary small fw-bold">Motivo / Descripción</label>
+                        {{ form_sancion.descripcion }}
+                    </div>
+                </div>
+                <div class="text-end mt-2">
+                    <button type="submit" name="agregar_sancion_manual" class="btn btn-danger fw-bold rounded-pill px-4">
+                        <i class="bi bi-plus-circle-fill me-1"></i> Guardar Deuda en el Sistema
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mt-4 mb-3 px-2">
         <div>
-            <h5 class="fw-black text-dark m-0"><i class="bi bi-diagram-3-fill text-primary me-2"></i>Cuentas por Equipo</h5>
+            <h5 class="fw-black text-dark m-0"><i class="bi bi-diagram-3-fill me-2" style="color: var(--primary-blue);"></i>Cuentas por Equipo</h5>
             <p class="text-muted small m-0 lh-sm">Toca un equipo para ver sus deudas pendientes y su historial pagado.</p>
         </div>
         <div class="d-flex gap-2">
             <form method="POST" class="m-0">
                 {% csrf_token %}
                 <button type="submit" name="generar_inscripciones_viejas" class="btn btn-sm btn-light border fw-bold shadow-sm" onclick="return confirm('¿Buscar y generar deudas de inscripción faltantes para equipos oficiales?');">
-                    <i class="bi bi-arrow-clockwise text-primary"></i> Sincronizar
+                    <i class="bi bi-arrow-clockwise" style="color: var(--primary-blue);"></i> Sincronizar
                 </button>
             </form>
-            <a href="{% url 'registrar_pago' %}" class="btn btn-sm btn-dark fw-black shadow-sm"><i class="bi bi-plus-lg me-1"></i> Cobro Libre</a>
+            <a href="{% url 'registrar_pago' %}" class="btn btn-sm text-white fw-black shadow-sm" style="background-color: var(--primary-navy);"><i class="bi bi-plus-lg me-1"></i> Cobro Libre</a>
         </div>
     </div>
 
@@ -287,14 +320,14 @@
                                     {% if not s.pagada %}
                                     <div class="debt-item">
                                         <div class="debt-info d-flex align-items-start gap-3">
-                                            <div class="debt-icon-box {% if 'Inscripci' in s.descripcion %}bg-primary bg-opacity-10 text-primary{% else %}bg-warning bg-opacity-10 text-warning{% endif %}">
+                                            <div class="debt-icon-box {% if 'Inscripci' in s.descripcion %}bg-primary bg-opacity-10 text-primary{% else %}bg-warning bg-opacity-10 text-warning{% endif %}" {% if 'Inscripci' in s.descripcion %}style="color: var(--primary-blue) !important;"{% endif %}>
                                                 <i class="bi {% if 'Inscripci' in s.descripcion %}bi-journal-check{% else %}bi-exclamation-triangle-fill{% endif %} fs-6"></i>
                                             </div>
                                             
                                             <div style="min-width: 0;">
                                                 <div class="d-flex align-items-center gap-2 mb-1">
                                                     {% if 'Inscripci' in s.descripcion %}
-                                                        <span class="pill-tag bg-primary text-white shadow-sm">INSCRIPCIÓN</span>
+                                                        <span class="pill-tag text-white shadow-sm" style="background-color: var(--primary-blue);">INSCRIPCIÓN</span>
                                                     {% else %}
                                                         <span class="pill-tag bg-warning text-dark shadow-sm">SANCIÓN / MULTA</span>
                                                     {% endif %}
@@ -308,7 +341,7 @@
                                                 {% if s.jugador or s.partido %}
                                                 <div class="detail-box">
                                                     {% if s.jugador %}
-                                                        <div class="text-dark fw-bold" style="font-size: 0.7rem;"><i class="bi bi-person-fill text-muted me-1"></i>Jugador Implicado: <span class="text-primary">{{ s.jugador.nombres }}</span></div>
+                                                        <div class="text-dark fw-bold" style="font-size: 0.7rem;"><i class="bi bi-person-fill text-muted me-1"></i>Jugador Implicado: <span style="color: var(--primary-blue);">{{ s.jugador.nombres }}</span></div>
                                                     {% endif %}
                                                     {% if s.partido %}
                                                         <div class="text-muted mt-1" style="font-size: 0.7rem;"><i class="bi bi-geo-alt-fill me-1"></i>Origen: {{ s.partido.equipo_local.nombre }} vs {{ s.partido.equipo_visita.nombre }}</div>
@@ -336,8 +369,16 @@
 
                                         <div class="debt-action">
                                             <div class="d-flex flex-column align-items-md-end align-items-start w-100">
-                                                <div class="d-flex w-100 justify-content-between justify-content-md-end align-items-center mb-2">
+                                                <div class="d-flex w-100 justify-content-between justify-content-md-end align-items-center mb-2 gap-2">
                                                     <span class="text-muted fw-bold d-md-none small">Saldo pendiente:</span>
+                                                    
+                                                    {% if s.monto_pagado > 0 %}
+                                                    <form action="{% url 'revertir_cobro_sancion' s.id %}" method="POST" class="m-0" onsubmit="return confirm('⚠️ ¿Estás seguro de anular EL ÚLTIMO ABONO de esta sanción?');">
+                                                        {% csrf_token %} <button type="submit" class="btn btn-sm btn-outline-danger shadow-sm py-0 px-2" title="Anular Último Abono">
+                                                            <i class="bi bi-arrow-counterclockwise"></i> Reversar
+                                                        </button>
+                                                    </form>
+                                                    {% endif %}
                                                     <h4 class="fw-black text-danger m-0 fs-4">${{ s.saldo }}</h4>
                                                 </div>
                                                 
@@ -379,8 +420,14 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="fw-black text-success" style="font-size: 0.85rem;">
+                                        <div class="fw-black text-success d-flex align-items-center gap-2" style="font-size: 0.85rem;">
                                             ${{ s.monto }}
+                                            
+                                            <form action="{% url 'revertir_cobro_sancion' s.id %}" method="POST" class="m-0" onsubmit="return confirm('⚠️ ¿Estás seguro de anular el pago de esta cuenta?');">
+                                                {% csrf_token %} <button type="submit" class="btn btn-sm btn-outline-danger shadow-sm py-0 px-1" title="Anular Pago">
+                                                    <i class="bi bi-arrow-counterclockwise"></i>
+                                                </button>
+                                            </form>
                                         </div>
                                     </div>
                                     {% endif %}

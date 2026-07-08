@@ -1,0 +1,303 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Carnets | {{ equipo.nombre }}</title>
+    <!-- Fuentes para el diseño deportivo -->
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,700;0,900;1,800;1,900&family=Inter:wght@500;700;800&display=swap" rel="stylesheet">
+    <!-- Iconos -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    
+    <style>
+        :root {
+            /* Si no hay color de categoría, usa el dorado por defecto de la imagen */
+            --color-cat: {{ color_categoria|default:'#fbbf24' }};
+            --color-dark: #0a0a0a;
+            --color-blue: #1e3a8a;
+            --color-red: #dc2626;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #cbd5e1;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .btn-imprimir {
+            display: block; width: 250px; margin: 0 auto 30px auto;
+            background: #0f172a; color: white; border: none; padding: 15px;
+            font-size: 1.1rem; font-weight: bold; border-radius: 10px;
+            cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            transition: background 0.3s;
+        }
+        .btn-imprimir:hover { background: var(--color-blue); }
+
+        /* Contenedor tipo Hoja A4 */
+        .hoja-impresion {
+            display: flex; flex-wrap: wrap; gap: 15px;
+            justify-content: center; max-width: 21cm; margin: 0 auto;
+        }
+
+        /* --- DISEÑO DEL CARNET (HORIZONTAL CR80) --- */
+        .carnet {
+            width: 9.2cm; 
+            height: 5.8cm;
+            background-color: var(--color-dark);
+            /* Textura de panal oscura */
+            background-image: url("data:image/svg+xml,%3Csvg width='24' height='40' viewBox='0 0 24 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 40c5.523 0 10-4.477 10-10V10C10 4.477 5.523 0 0 0h24c-5.523 0-10 4.477-10 10v20c0 5.523 5.523 10 10 10H0z' fill='%23ffffff' fill-opacity='0.03' fill-rule='evenodd'/%3E%3C/svg%3E");
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+            page-break-inside: avoid;
+            border: 1px solid #333;
+        }
+
+        /* Perforación superior central */
+        .lanyard-hole {
+            position: absolute;
+            top: 6px; left: 50%;
+            transform: translateX(-50%);
+            width: 14px; height: 4px;
+            background: #fff;
+            border-radius: 4px;
+            z-index: 20;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);
+        }
+
+        /* Detalles geométricos de color en las esquinas */
+        .decor-top-right {
+            position: absolute; top: 0; right: 0;
+            width: 120px; height: 120px;
+            background: linear-gradient(135deg, var(--color-red) 0%, transparent 60%);
+            opacity: 0.8; z-index: 1;
+        }
+        .decor-bottom-left {
+            position: absolute; bottom: 0; left: 0;
+            width: 120px; height: 120px;
+            background: linear-gradient(45deg, var(--color-blue) 0%, transparent 60%);
+            opacity: 0.8; z-index: 1;
+        }
+
+        /* --- COLUMNA IZQUIERDA (Foto y Equipo) --- */
+        .col-left {
+            width: 38%;
+            padding: 15px 10px 10px 15px;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .foto-box {
+            width: 100%;
+            height: 72%;
+            background: #e2e8f0;
+            border-radius: 8px;
+            border: 2px solid #fff;
+            overflow: hidden;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .foto-box img {
+            width: 100%; height: 100%; object-fit: cover;
+        }
+        .foto-placeholder {
+            font-size: 40px; color: #94a3b8;
+        }
+
+        .equipo-badge {
+            display: flex; align-items: center; gap: 6px;
+            background: rgba(0,0,0,0.6);
+            padding: 4px; border-radius: 6px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .equipo-badge img {
+            width: 22px; height: 22px; object-fit: contain;
+        }
+        .equipo-badge .nombre {
+            color: #fff; font-family: 'Montserrat', sans-serif;
+            font-size: 8px; font-weight: 800; line-height: 1;
+            text-transform: uppercase;
+        }
+
+        /* --- COLUMNA DERECHA (Logos y Datos) --- */
+        .col-right {
+            width: 62%;
+            padding: 15px 15px 10px 5px;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Logo principal del software / liga */
+        .logo-sistema {
+            height: 45px; 
+            object-fit: contain;
+            align-self: flex-end;
+            margin-bottom: 5px;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+        }
+
+        /* Títulos */
+        .titulos {
+            text-align: right;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            padding-bottom: 4px;
+            margin-bottom: 8px;
+        }
+        .titulos h1 {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 15px; font-weight: 900; font-style: italic;
+            color: #fff; margin: 0; letter-spacing: 0.5px;
+        }
+        .titulos h2 {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 8px; font-weight: 700; font-style: italic;
+            color: #38bdf8; margin: 2px 0 0 0; text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Lista de Datos */
+        .datos-lista {
+            display: flex; flex-direction: column; gap: 4px;
+            flex-grow: 1; justify-content: flex-end;
+        }
+        
+        .dato-item {
+            display: flex; align-items: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 3px;
+        }
+        
+        .dato-icon {
+            color: var(--color-cat);
+            font-size: 12px;
+            width: 18px;
+            text-align: center;
+        }
+        
+        .dato-label {
+            color: var(--color-cat);
+            font-family: 'Montserrat', sans-serif;
+            font-size: 9px; font-weight: 800; font-style: italic;
+            width: 55px; margin-left: 4px;
+        }
+        
+        .dato-valor {
+            color: #fff;
+            font-size: 11px; font-weight: 700;
+            text-transform: uppercase;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            flex-grow: 1;
+        }
+
+        /* Reglas estrictas para la impresora */
+        @media print {
+            body { background-color: white !important; margin: 0; padding: 0; }
+            .btn-imprimir { display: none !important; }
+            .hoja-impresion { gap: 5px; justify-content: flex-start; }
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <button class="btn-imprimir" onclick="window.print()">
+        🖨️ Imprimir Carnets
+    </button>
+
+    <div class="hoja-impresion">
+        {% for jugador in jugadores %}
+        <div class="carnet">
+            <!-- Fondos y Decoraciones -->
+            <div class="decor-top-right"></div>
+            <div class="decor-bottom-left"></div>
+            <div class="lanyard-hole"></div>
+            
+            <!-- Columna Izquierda: Foto y Equipo -->
+            <div class="col-left">
+                <div class="foto-box">
+                    {% if jugador.foto %}
+                        <img src="{{ jugador.foto.url }}" alt="Foto">
+                    {% else %}
+                        <div class="foto-placeholder"><i class="bi bi-person-fill"></i></div>
+                    {% endif %}
+                </div>
+                
+                <div class="equipo-badge">
+                    {% if equipo.escudo %}
+                        <img src="{{ equipo.escudo.url }}" alt="Escudo">
+                    {% else %}
+                        <div style="width:22px; height:22px; background:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                            <i class="bi bi-shield-fill text-dark" style="font-size:12px;"></i>
+                        </div>
+                    {% endif %}
+                    <div class="nombre">{{ equipo.nombre }}<br><span style="font-size: 5px; color: var(--color-cat);">EQUIPO</span></div>
+                </div>
+            </div>
+
+            <!-- Columna Derecha: Logos y Datos -->
+            <div class="col-right">
+                
+                <!-- Logo Principal del Software -->
+                {% if config_global.logo_sistema %}
+                    <img src="{{ config_global.logo_sistema.url }}" class="logo-sistema" alt="Logo Sistema">
+                {% else %}
+                    <div class="logo-sistema" style="display:flex; align-items:flex-end; justify-content:flex-end; color:#fff; font-weight:900; font-style:italic;">
+                        CANCHA EL CHULO
+                    </div>
+                {% endif %}
+
+                <div class="titulos">
+                    <h1>CARNET DE JUGADOR</h1>
+                    <h2>TORNEO {{ equipo.torneo.nombre|truncatechars:25 }}</h2>
+                </div>
+
+                <div class="datos-lista">
+                    <!-- Dorsal -->
+                    <div class="dato-item">
+                        <i class="bi bi-person-vcard-fill dato-icon"></i>
+                        <span class="dato-label">DORSAL:</span>
+                        <span class="dato-valor">{{ jugador.dorsal|default:"S/N" }}</span>
+                    </div>
+                    
+                    <!-- Cédula -->
+                    <div class="dato-item">
+                        <i class="bi bi-upc-scan dato-icon"></i>
+                        <span class="dato-label">CÉDULA:</span>
+                        <span class="dato-valor">{{ jugador.cedula }}</span>
+                    </div>
+                    
+                    <!-- Nombres -->
+                    <div class="dato-item">
+                        <i class="bi bi-person-fill dato-icon"></i>
+                        <span class="dato-label">NOMBRES:</span>
+                        <span class="dato-valor">{{ jugador.nombres }}</span>
+                    </div>
+                    
+                    <!-- Equipo -->
+                    <div class="dato-item" style="border-bottom: none;">
+                        <i class="bi bi-shield-check dato-icon"></i>
+                        <span class="dato-label">EQUIPO:</span>
+                        <span class="dato-valor">{{ equipo.nombre }}</span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+        {% empty %}
+        <div style="text-align:center; width: 100%; padding-top: 50px;">
+            <h3 style="color: #64748b; font-family: 'Inter', sans-serif;">No hay jugadores activos en este equipo para imprimir.</h3>
+        </div>
+        {% endfor %}
+    </div>
+
+</body>
+</html>

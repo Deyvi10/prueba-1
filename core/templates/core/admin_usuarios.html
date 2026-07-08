@@ -1,10 +1,10 @@
 {% extends 'core/base.html' %}
 
-{% block title %}Seguridad y Usuarios | Cancha El Chulo{% endblock %}
+{% block title %}Seguridad y Usuarios | CANCHA EL CHULO{% endblock %}
 
 {% block extra_css %}
 <style>
-    /* Estilos Premium Clean Minimalist */
+    /* Estilos Premium Clean Minimalist CANCHA EL CHULO */
     .card-pro {
         border: 0;
         border-radius: 16px;
@@ -13,22 +13,22 @@
         transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s;
     }
     .card-pro:hover {
-        box-shadow: 0 12px 30px rgba(0,0,0,0.08) !important;
+        box-shadow: 0 12px 30px rgba(29, 78, 216, 0.1) !important;
     }
     
-    tbody tr:hover { background-color: #f8fafc !important; }
+    tbody tr:hover { background-color: var(--bg-body) !important; }
     
     .hover-lift { transition: transform 0.2s ease, box-shadow 0.2s ease; }
     .hover-lift:hover { transform: translateY(-2px); }
     
-    /* Select minimalista */
+    /* Select minimalista azul */
     .select-pro {
         cursor: pointer;
         transition: all 0.3s ease;
     }
     .select-pro:focus {
-        border-color: var(--primary-dark) !important;
-        box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.1) !important;
+        border-color: var(--primary-blue) !important;
+        box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.15) !important;
     }
 </style>
 {% endblock %}
@@ -38,15 +38,15 @@
     
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 pb-3 border-bottom">
         <div class="mb-3 mb-md-0">
-            <span class="badge bg-secondary bg-opacity-10 text-secondary fw-bold px-3 py-2 mb-2 rounded-pill border border-secondary-subtle">
-                <i class="bi bi-shield-lock-fill me-1"></i> Panel de Seguridad
+            <span class="badge bg-primary bg-opacity-10 fw-bold px-3 py-2 mb-2 rounded-pill border border-primary border-opacity-25" style="color: var(--primary-blue) !important;">
+                <i class="bi bi-shield-lock-fill me-1"></i> Panel de Seguridad CANCHA EL CHULO
             </span>
             <h2 class="fw-black text-dark mb-0" style="letter-spacing: -0.5px;">Gestión de Usuarios</h2>
             <p class="text-muted small mt-1 mb-0">Administra los niveles de acceso y permisos en la plataforma.</p>
         </div>
         
         <div>
-            <a href="{% url 'crear_usuario' %}" class="btn btn-dark fw-bold rounded-pill px-4 py-2 shadow-sm hover-lift">
+            <a href="{% url 'crear_usuario' %}" class="btn text-white fw-bold rounded-pill px-4 py-2 shadow-sm hover-lift" style="background-color: var(--primary-blue);">
                 <i class="bi bi-person-plus-fill me-2"></i>Agregar Usuario
             </a>
         </div>
@@ -72,7 +72,7 @@
                             
                             <td class="ps-4 py-3">
                                 <div class="d-flex align-items-center">
-                                    <div class="bg-primary bg-opacity-10 text-primary fw-black rounded-circle d-inline-flex align-items-center justify-content-center me-3 shadow-sm border border-primary border-opacity-10" style="width: 45px; height: 45px; font-size: 1.2rem;">
+                                    <div class="text-white fw-black rounded-circle d-inline-flex align-items-center justify-content-center me-3 shadow-sm" style="background-color: var(--primary-navy); width: 45px; height: 45px; font-size: 1.2rem;">
                                         {{ u.username|slice:":1"|upper }}
                                     </div>
                                     <div>
@@ -90,11 +90,11 @@
                             
                             <td>
                                 {% if u.perfil.rol == 'ORG' %}
-                                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger px-3 py-1 rounded-pill shadow-sm"><i class="bi bi-gear-wide-connected me-1"></i> Organizador</span>
+                                    <span class="badge px-3 py-1 rounded-pill shadow-sm" style="background-color: var(--primary-navy); border: 1px solid var(--primary-navy);"><i class="bi bi-gear-wide-connected me-1"></i> Organizador</span>
                                 {% elif u.perfil.rol == 'DIR' %}
-                                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary px-3 py-1 rounded-pill shadow-sm"><i class="bi bi-person-badge me-1"></i> Dirigente</span>
+                                    <span class="badge px-3 py-1 rounded-pill shadow-sm" style="background-color: var(--primary-blue); border: 1px solid var(--primary-blue);"><i class="bi bi-person-badge me-1"></i> Dirigente</span>
                                 {% elif u.perfil.rol == 'VOC' %}
-                                    <span class="badge bg-warning bg-opacity-10 text-dark border border-warning px-3 py-1 rounded-pill shadow-sm"><i class="bi bi-clipboard-data me-1 text-warning"></i> Vocal Mesa</span>
+                                    <span class="badge bg-warning text-dark border border-warning px-3 py-1 rounded-pill shadow-sm"><i class="bi bi-clipboard-data me-1"></i> Vocal Mesa</span>
                                 {% else %}
                                     <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary px-3 py-1 rounded-pill shadow-sm"><i class="bi bi-person me-1"></i> Aficionado</span>
                                 {% endif %}
@@ -124,7 +124,7 @@
                                         <option value="FAN" {% if u.perfil.rol == 'FAN' %}selected{% endif %}>Aficionado</option>
                                     </select>
                                     
-                                    <button type="submit" class="btn btn-sm btn-dark fw-bold px-3 shadow-sm hover-lift" title="Guardar Nuevo Rol" onclick="return confirm('¿Confirmas el cambio de permisos para el usuario @{{ u.username }}?');">
+                                    <button type="submit" class="btn btn-sm text-white fw-bold px-3 shadow-sm hover-lift" title="Guardar Nuevo Rol" onclick="return confirm('¿Confirmas el cambio de permisos para el usuario @{{ u.username }}?');" style="background-color: var(--primary-navy);">
                                         <i class="bi bi-arrow-repeat me-1"></i> Actualizar
                                     </button>
                                 </form>
@@ -149,20 +149,20 @@
     
     <div class="alert bg-light border border-secondary-subtle rounded-4 p-4 shadow-sm">
         <div class="d-flex align-items-start">
-            <i class="bi bi-info-circle-fill text-primary fs-4 me-3 mt-1"></i>
+            <i class="bi bi-info-circle-fill fs-4 me-3 mt-1" style="color: var(--primary-blue);"></i>
             <div>
-                <h6 class="fw-bold text-dark mb-2">Guía de Permisos del Sistema</h6>
+                <h6 class="fw-bold text-dark mb-2">Guía de Permisos del Sistema CANCHA EL CHULO</h6>
                 <div class="row g-3 small text-muted">
                     <div class="col-md-6 col-lg-3">
-                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger mb-1"><i class="bi bi-gear-wide-connected"></i> Organizador</span>
+                        <span class="badge mb-1" style="background-color: var(--primary-navy);"><i class="bi bi-gear-wide-connected"></i> Organizador</span>
                         <br>Acceso total. Crea torneos, cobra deudas y edita toda la información.
                     </div>
                     <div class="col-md-6 col-lg-3">
-                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary mb-1"><i class="bi bi-person-badge"></i> Dirigente</span>
+                        <span class="badge mb-1" style="background-color: var(--primary-blue);"><i class="bi bi-person-badge"></i> Dirigente</span>
                         <br>Puede inscribir a su propio equipo, fichar jugadores y gestionar su club.
                     </div>
                     <div class="col-md-6 col-lg-3">
-                        <span class="badge bg-warning bg-opacity-10 text-dark border border-warning mb-1"><i class="bi bi-clipboard-data"></i> Vocal Mesa</span>
+                        <span class="badge bg-warning text-dark border border-warning mb-1"><i class="bi bi-clipboard-data"></i> Vocal Mesa</span>
                         <br>Acceso a la "Mesa de Control" para pitar partidos, anotar goles y tarjetas.
                     </div>
                     <div class="col-md-6 col-lg-3">
